@@ -15,10 +15,6 @@ Build a helmet-mounted AR system with:
 - Team coordination and data sharing
 - Field-hardened, modular, extensible
 
-**Current Status:** Phase 0 Complete - Tactical HUD software operational
-**Up Next:** Phase 1 - Raspberry Pi 5 and low-light camera
-
-
 ---
 
 ## QUICK START
