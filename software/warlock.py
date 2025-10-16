@@ -278,6 +278,9 @@ def main():
 
     print(f"Video resolution: {DEFAULT_FRAME_WIDTH}x{DEFAULT_FRAME_HEIGHT}")
 
+    # Provide camera handle to plugins (for auto-exposure control)
+    context.state['camera_handle'] = cap
+
     gps = GPSSimulator()
     team = TeamSimulator(gps.latitude, gps.longitude)
 
