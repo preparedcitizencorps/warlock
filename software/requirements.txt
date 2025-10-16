@@ -1,1 +1,14 @@
-pyyaml
+# Core dependencies
+opencv-python>=4.8.0
+numpy>=1.24.0
+pyyaml>=6.0
+
+# Machine learning
+ultralytics>=8.0.0
+
+# HTTP requests for map tiles
+requests>=2.31.0
+
+# Testing (optional, but needed for CI)
+pytest>=8.0.0
+pytest-cov>=4.1.0
