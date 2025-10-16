@@ -1,0 +1,15 @@
+# Development dependencies
+# Install with: pip install -r requirements.txt -r requirements-dev.txt
+
+# Linting and formatting
+flake8>=7.0.0
+black>=24.0.0
+isort>=5.13.0
+pylint>=3.0.0
+
+# Type checking
+mypy>=1.8.0
+
+# Testing extras
+pytest-asyncio>=0.23.0
+pytest-xdist>=3.5.0  # Parallel test execution
