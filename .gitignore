@@ -58,6 +58,7 @@ logs/
 output/
 results/
 checkpoints/
+cache/
 
 # YOLO models (download on-demand, don't commit)
 *.pt
