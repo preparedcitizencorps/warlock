@@ -10,6 +10,7 @@ from typing import Optional
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from hud.plugin_base import HUDPlugin, HUDContext, PluginConfig, PluginMetadata
+from hud.camera_controller import CameraController
 
 
 class AutoExposurePlugin(HUDPlugin):
@@ -79,7 +80,7 @@ class AutoExposurePlugin(HUDPlugin):
         self.current_exposure: Optional[float] = None
         self.current_gain: Optional[float] = None
         self.current_brightness: float = 0.0
-        self.camera_handle: Optional[cv2.VideoCapture] = None
+        self.camera_controller: Optional[CameraController] = None
         self.auto_mode_enabled = True
         self.clahe = None
         self.show_stats = True
@@ -93,12 +94,12 @@ class AutoExposurePlugin(HUDPlugin):
     def initialize(self) -> bool:
         print("Auto Exposure Plugin: Initializing...")
 
-        self.camera_handle = self.get_data('camera_handle', None)
+        self.camera_controller = self.get_data('camera_handle', None)
 
-        if self.camera_handle is not None:
+        if self.camera_controller is not None:
             self._initialize_camera_settings()
         else:
-            print("Auto Exposure Plugin: Camera handle not available in context")
+            print("Auto Exposure Plugin: Camera controller not available in context")
             print("Auto Exposure Plugin: Software-based adjustments will be used")
 
         print("Auto Exposure Plugin: Initialized successfully")
@@ -106,18 +107,18 @@ class AutoExposurePlugin(HUDPlugin):
 
     def _initialize_camera_settings(self):
         try:
-            self.camera_handle.set(cv2.CAP_PROP_AUTO_EXPOSURE, self.MANUAL_EXPOSURE_MODE)
+            self.camera_controller.set_property(cv2.CAP_PROP_AUTO_EXPOSURE, self.MANUAL_EXPOSURE_MODE)
 
             if self.enable_auto_exposure:
                 initial_exposure = (self.min_exposure + self.max_exposure) / 2
-                self.camera_handle.set(cv2.CAP_PROP_EXPOSURE, initial_exposure)
-                self.current_exposure = self.camera_handle.get(cv2.CAP_PROP_EXPOSURE)
+                self.camera_controller.set_exposure(initial_exposure)
+                self.current_exposure = self.camera_controller.get_exposure()
                 print(f"Auto Exposure Plugin: Initial exposure set to {self.current_exposure}")
 
             if self.enable_auto_gain:
                 initial_gain = (self.min_gain + self.max_gain) / 2
-                self.camera_handle.set(cv2.CAP_PROP_GAIN, initial_gain)
-                self.current_gain = self.camera_handle.get(cv2.CAP_PROP_GAIN)
+                self.camera_controller.set_gain(initial_gain)
+                self.current_gain = self.camera_controller.get_gain()
                 print(f"Auto Exposure Plugin: Initial gain set to {self.current_gain}")
 
         except Exception as e:
@@ -141,7 +142,7 @@ class AutoExposurePlugin(HUDPlugin):
         return weighted_brightness
 
     def _adjust_exposure(self, current_brightness: float):
-        if self.camera_handle is None or not self.enable_auto_exposure:
+        if self.camera_controller is None or not self.enable_auto_exposure:
             return
 
         brightness_error = self.target_brightness - current_brightness
@@ -153,7 +154,7 @@ class AutoExposurePlugin(HUDPlugin):
             adjustment = brightness_error * self.adjustment_speed * self.EXPOSURE_ADJUSTMENT_FACTOR
 
             if self.current_exposure is None:
-                self.current_exposure = self.camera_handle.get(cv2.CAP_PROP_EXPOSURE)
+                self.current_exposure = self.camera_controller.get_exposure()
 
             new_exposure = np.clip(
                 self.current_exposure + adjustment,
@@ -161,14 +162,14 @@ class AutoExposurePlugin(HUDPlugin):
                 self.max_exposure
             )
 
-            self.camera_handle.set(cv2.CAP_PROP_EXPOSURE, new_exposure)
-            self.current_exposure = new_exposure
+            if self.camera_controller.set_exposure(new_exposure):
+                self.current_exposure = new_exposure
 
         except Exception as e:
             print(f"Auto Exposure Plugin: Error adjusting exposure: {e}")
 
     def _adjust_gain(self, current_brightness: float):
-        if self.camera_handle is None or not self.enable_auto_gain:
+        if self.camera_controller is None or not self.enable_auto_gain:
             return
 
         brightness_error = self.target_brightness - current_brightness
@@ -184,7 +185,7 @@ class AutoExposurePlugin(HUDPlugin):
             adjustment = brightness_error * self.adjustment_speed * self.GAIN_ADJUSTMENT_FACTOR
 
             if self.current_gain is None:
-                self.current_gain = self.camera_handle.get(cv2.CAP_PROP_GAIN)
+                self.current_gain = self.camera_controller.get_gain()
 
             new_gain = np.clip(
                 self.current_gain + adjustment,
@@ -192,8 +193,8 @@ class AutoExposurePlugin(HUDPlugin):
                 self.max_gain
             )
 
-            self.camera_handle.set(cv2.CAP_PROP_GAIN, new_gain)
-            self.current_gain = new_gain
+            if self.camera_controller.set_gain(new_gain):
+                self.current_gain = new_gain
 
         except Exception as e:
             print(f"Auto Exposure Plugin: Error adjusting gain: {e}")
@@ -303,11 +304,11 @@ class AutoExposurePlugin(HUDPlugin):
         return False
 
     def cleanup(self):
-        if self.camera_handle is not None:
+        if self.camera_controller is not None:
             try:
-                self.camera_handle.set(cv2.CAP_PROP_AUTO_EXPOSURE, self.AUTO_EXPOSURE_MODE)
+                self.camera_controller.set_property(cv2.CAP_PROP_AUTO_EXPOSURE, self.AUTO_EXPOSURE_MODE)
             except Exception as e:
                 print(f"Auto Exposure Plugin: Error during cleanup: {e}")
 
-        self.camera_handle = None
+        self.camera_controller = None
         self.clahe = None

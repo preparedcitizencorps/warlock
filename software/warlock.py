@@ -9,6 +9,7 @@ import platform
 
 from hud import HUDContext, PluginManager
 from hud.config_loader import load_config, create_plugin_config
+from hud.camera_controller import CameraController
 
 
 class ArrowKeys:
@@ -278,8 +279,7 @@ def main():
 
     print(f"Video resolution: {DEFAULT_FRAME_WIDTH}x{DEFAULT_FRAME_HEIGHT}")
 
-    # Provide camera handle to plugins (for auto-exposure control)
-    context.state['camera_handle'] = cap
+    context.state['camera_handle'] = CameraController(cap)
 
     gps = GPSSimulator()
     team = TeamSimulator(gps.latitude, gps.longitude)
