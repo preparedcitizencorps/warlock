@@ -2,7 +2,7 @@
 
 > **W**earable **A**ugmented **R**eality & **L**inked **O**perational **C**ombat **K**it
 
-**Halo-style tactical HUD for real-world operations. Open source. Built by operators, for operators.**
+**Halo-style tactical HUD for real-world operations. Open source. Built for civilians.**
 
 ---
 
