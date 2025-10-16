@@ -4,6 +4,8 @@
 
 **Halo-style tactical HUD for real-world operations. Open source. Built for civilians.**
 
+![WARLOCK HUD with YOLO Detection](docs/images/poc-v1.png)
+
 ---
 
 ## MISSION
@@ -35,20 +37,11 @@ python software/warlock.py
 
 ## CAPABILITIES
 
-### Tactical HUD System
 - **Modular plugin architecture** - Hot-swappable components
 - **Real-time object detection** - YOLO11n with friend/foe IFF
 - **GPS navigation** - Compass + motion tracker with terrain
 - **Runtime management** - Live reload, enable/disable plugins
 - **AR display ready** - Configurable padding for headset FOV
-
-### Built-in Modules
-- `BorderPaddingPlugin` - AR display safe zones
-- `CompassPlugin` - Heading indicator with cardinals
-- `MiniMapPlugin` - Circular mini-map with terrain overlay
-- `YOLODetectionPlugin` - Person detection + IFF
-- `FPSCounterPlugin` - Performance monitoring
-- `PluginControlPanel` - Runtime configuration
 
 ---
 
