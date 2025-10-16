@@ -302,7 +302,9 @@ pytest -v
 ## COMMUNITY
 
 **Discord:** https://discord.gg/uFMEug4Bb9
+
 **YouTube:** https://youtube.com/@preparedcitizencorps
+
 **Email:** contact@preparedcitizencorps.com
 
 **Contributing:** We need help with plugins, Pi optimization, hardware design, ML models, docs, and testing. See [CONTRIBUTING.md](CONTRIBUTING.md).
