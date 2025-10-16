@@ -1,21 +1,35 @@
-# Project WARLOCK - HUD Configuration
-# Define which plugins to load and their settings
-
 plugins:
+  - name: AutoExposurePlugin
+    enabled: true
+    visible: true
+    z_index: 1
+    settings:
+      target_brightness: 128
+      brightness_tolerance: 15
+      adjustment_speed: 0.15
+      min_exposure: -13
+      max_exposure: 0
+      min_gain: 0
+      max_gain: 100
+      use_histogram_eq: false
+      use_clahe: true
+      enable_auto_gain: true
+      enable_auto_exposure: true
+
   - name: BorderPaddingPlugin
     enabled: true
-    visible: false  # Hidden by default, toggle with 'b' key
-    z_index: 2  # Render early, but after background elements
+    visible: false
+    z_index: 2
     settings:
-      padding_top: 40  # Pixels from top edge
-      padding_bottom: 40  # Pixels from bottom edge
-      padding_left: 40  # Pixels from left edge
-      padding_right: 40  # Pixels from right edge
-      padding_step: 5  # Adjustment step for [ and ] keys
-      show_boundaries: true  # Show visual boundary lines
-      boundary_color: [0, 255, 255]  # Yellow (BGR)
+      padding_top: 40
+      padding_bottom: 40
+      padding_left: 40
+      padding_right: 40
+      padding_step: 5
+      show_boundaries: true
+      boundary_color: [0, 255, 255]
       boundary_thickness: 2
-      show_measurements: true  # Show padding measurements
+      show_measurements: true
 
   - name: CompassPlugin
     enabled: true
@@ -27,25 +41,25 @@ plugins:
     visible: true
     z_index: 5
     settings:
-      zoom_level: 300  # Initial zoom radius in meters
-      show_terrain: true  # Enable terrain overlay
+      zoom_level: 300
+      show_terrain: true
 
   - name: YOLODetectionPlugin
     enabled: true
-    visible: true  # Visible by default, toggle with 'y' key
-    z_index: 15  # Render after motion tracker but before FPS
+    visible: true
+    z_index: 15
     settings:
       model_path: yolo11n.pt
       confidence_threshold: 0.25
-      friend_color: [255, 200, 100]  # Cyan blue (BGR)
-      foe_color: [0, 100, 255]  # Orange/red (BGR)
+      friend_color: [255, 200, 100]
+      foe_color: [0, 100, 255]
 
   - name: FPSCounterPlugin
     enabled: true
-    visible: false  # Hidden by default, toggle with 'f' key
-    z_index: 100  # Render on top
+    visible: false
+    z_index: 100
 
   - name: PluginControlPanel
     enabled: true
-    visible: false  # Hidden by default, toggle with 'p' key
-    z_index: 1000  # Render on top of everything
+    visible: false
+    z_index: 1000
