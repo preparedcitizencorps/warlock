@@ -46,8 +46,7 @@ class GPSSimulator:
             self.latitude += lat_delta
 
             # Clamp latitude before using it for longitude calculation
-            self.latitude = max(self.SAFE_LATITUDE_RANGE[0],
-                               min(self.SAFE_LATITUDE_RANGE[1], self.latitude))
+            self.latitude = max(self.SAFE_LATITUDE_RANGE[0], min(self.SAFE_LATITUDE_RANGE[1], self.latitude))
 
             cos_lat = math.cos(math.radians(self.latitude))
             if abs(cos_lat) < self.MINIMUM_SAFE_COS_LAT:
@@ -63,11 +62,11 @@ class GPSSimulator:
             Dictionary with latitude, longitude, altitude, heading, timestamp
         """
         return {
-            'latitude': self.latitude,
-            'longitude': self.longitude,
-            'altitude': self.altitude,
-            'heading': self.heading,
-            'timestamp': time.time(),
-            'quality': self.fix_quality,
-            'num_satellites': self.num_satellites
+            "latitude": self.latitude,
+            "longitude": self.longitude,
+            "altitude": self.altitude,
+            "heading": self.heading,
+            "timestamp": time.time(),
+            "quality": self.fix_quality,
+            "num_satellites": self.num_satellites,
         }

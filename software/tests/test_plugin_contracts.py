@@ -1,15 +1,15 @@
 """Tests for plugin interface contracts and conventions."""
 
-import pytest
+import inspect
 import sys
 from pathlib import Path
-import inspect
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "software"))
 
-from common.plugin_base import HUDContext
+from common.plugin_base import HUDContext, HUDPlugin, PluginConfig
 from helmet.hud.plugin_manager import PluginManager
-from common.plugin_base import HUDPlugin, PluginConfig
 from tests.fixtures.mock_plugins import ProviderPlugin
 
 
@@ -24,12 +24,11 @@ class TestPluginInterface:
         """Every plugin must implement abstract methods."""
         self.manager.discover_plugins()
 
-        required_methods = ['initialize', 'update', 'render']
+        required_methods = ["initialize", "update", "render"]
 
         for name, plugin_class in self.manager.plugin_classes.items():
             for method_name in required_methods:
-                assert hasattr(plugin_class, method_name), \
-                    f"{name} must implement {method_name}()"
+                assert hasattr(plugin_class, method_name), f"{name} must implement {method_name}()"
 
                 method = getattr(plugin_class, method_name)
                 assert callable(method), f"{name}.{method_name} must be callable"
@@ -38,16 +37,15 @@ class TestPluginInterface:
         """Every plugin must have metadata with required fields."""
         self.manager.discover_plugins()
 
-        required_fields = ['name', 'version', 'author', 'description']
+        required_fields = ["name", "version", "author", "description"]
 
         for name, plugin_class in self.manager.plugin_classes.items():
             plugin = plugin_class(self.context, PluginConfig())
 
-            assert hasattr(plugin, 'metadata'), f"{name} must have metadata"
+            assert hasattr(plugin, "metadata"), f"{name} must have metadata"
 
             for field in required_fields:
-                assert hasattr(plugin.metadata, field), \
-                    f"{name}.metadata must have {field}"
+                assert hasattr(plugin.metadata, field), f"{name}.metadata must have {field}"
 
     def test_plugin_initialize_returns_bool(self):
         """initialize() must return boolean."""
@@ -86,32 +84,33 @@ class TestPluginDataContract:
         provided_keys = set(self.context.state.keys())
 
         for key in provided_keys:
-            assert key in plugin.metadata.provides, \
-                f"Plugin provides '{key}' but doesn't declare it in metadata.provides"
+            assert (
+                key in plugin.metadata.provides
+            ), f"Plugin provides '{key}' but doesn't declare it in metadata.provides"
 
     def test_require_data_raises_on_missing(self):
         """require_data() must raise RuntimeError when data missing."""
         plugin = ProviderPlugin(self.context, PluginConfig())
 
         with pytest.raises(RuntimeError, match="requires"):
-            plugin.require_data('nonexistent_key')
+            plugin.require_data("nonexistent_key")
 
     def test_get_data_returns_default_on_missing(self):
         """get_data() must return default when data missing."""
         plugin = ProviderPlugin(self.context, PluginConfig())
 
-        result = plugin.get_data('nonexistent_key', {'default': True})
+        result = plugin.get_data("nonexistent_key", {"default": True})
 
-        assert result == {'default': True}
+        assert result == {"default": True}
 
     def test_provide_data_adds_to_context(self):
         """provide_data() must add data to context.state."""
         plugin = ProviderPlugin(self.context, PluginConfig())
 
-        plugin.provide_data('test_key', 'test_value')
+        plugin.provide_data("test_key", "test_value")
 
-        assert 'test_key' in self.context.state
-        assert self.context.state['test_key'] == 'test_value'
+        assert "test_key" in self.context.state
+        assert self.context.state["test_key"] == "test_value"
 
 
 class TestPluginLifecycle:
@@ -123,7 +122,7 @@ class TestPluginLifecycle:
 
     def test_plugin_initialized_flag_set_after_load(self):
         """Plugin.initialized should be True after successful load."""
-        self.manager.plugin_classes = {'ProviderPlugin': ProviderPlugin}
+        self.manager.plugin_classes = {"ProviderPlugin": ProviderPlugin}
 
         plugin = self.manager.load_plugin(ProviderPlugin, PluginConfig())
 
@@ -131,11 +130,12 @@ class TestPluginLifecycle:
 
     def test_plugin_not_added_if_initialize_fails(self):
         """Plugin should not be added to manager if initialize() returns False."""
+
         class FailingPlugin(ProviderPlugin):
             def initialize(self):
                 return False
 
-        self.manager.plugin_classes = {'FailingPlugin': FailingPlugin}
+        self.manager.plugin_classes = {"FailingPlugin": FailingPlugin}
 
         result = self.manager.load_plugin(FailingPlugin, PluginConfig())
 
@@ -144,6 +144,7 @@ class TestPluginLifecycle:
 
     def test_cleanup_called_on_unload(self):
         """cleanup() should be called when plugin is unloaded."""
+
         class TrackablePlugin(ProviderPlugin):
             def __init__(self, context, config):
                 super().__init__(context, config)
@@ -152,7 +153,7 @@ class TestPluginLifecycle:
             def cleanup(self):
                 self.cleanup_called = True
 
-        self.manager.plugin_classes = {'TrackablePlugin': TrackablePlugin}
+        self.manager.plugin_classes = {"TrackablePlugin": TrackablePlugin}
 
         plugin = self.manager.load_plugin(TrackablePlugin, PluginConfig())
         self.manager.unload_plugin(plugin)

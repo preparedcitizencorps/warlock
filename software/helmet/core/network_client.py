@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """Network client for Helmet-Mounted Unit (HMU) to communicate with BMU."""
 
-import socket
-import threading
 import logging
 import queue
+import socket
+import threading
 import time
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
+
+from common.data_models import FriendlyUnit, Position, RFDetection, WiFiDetection
 from common.network_base import NetworkConnection
-from common.protocol import MessageType, ConnectionStatus
-from common.data_models import Position, FriendlyUnit, RFDetection, WiFiDetection
+from common.protocol import ConnectionStatus, MessageType
 
 logger = logging.getLogger(__name__)
 
@@ -17,8 +18,7 @@ logger = logging.getLogger(__name__)
 class HMUNetworkClient(NetworkConnection):
     """Network client for HMU to connect to BMU server."""
 
-    def __init__(self, source_id: str, server_host: str = "192.168.200.2",
-                 tcp_port: int = None, udp_port: int = None):
+    def __init__(self, source_id: str, server_host: str = "192.168.200.2", tcp_port: int = None, udp_port: int = None):
         """Initialize HMU network client.
 
         Args:
@@ -35,12 +35,12 @@ class HMUNetworkClient(NetworkConnection):
 
         self._data_lock = threading.Lock()
         self.latest_data: Dict[str, Any] = {
-            'gps_position': None,
-            'team_positions': [],
-            'rf_alerts': [],
-            'wifi_alerts': [],
-            'radio_status': None,
-            'atak_data': None,
+            "gps_position": None,
+            "team_positions": [],
+            "rf_alerts": [],
+            "wifi_alerts": [],
+            "radio_status": None,
+            "atak_data": None,
         }
 
         self.connection_type = "cable"
@@ -60,7 +60,7 @@ class HMUNetworkClient(NetworkConnection):
             logger.info("TCP connection established")
 
             self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self.udp_socket.bind(('', 0))
+            self.udp_socket.bind(("", 0))
             logger.info(f"UDP socket created on port {self.udp_socket.getsockname()[1]}")
 
             self.status = ConnectionStatus.CONNECTED
@@ -177,31 +177,31 @@ class HMUNetworkClient(NetworkConnection):
 
         def handle_gps_update(payload):
             with self._data_lock:
-                self.latest_data['gps_position'] = payload
+                self.latest_data["gps_position"] = payload
 
         def handle_team_positions(payload):
             with self._data_lock:
-                self.latest_data['team_positions'] = payload.get('units', [])
+                self.latest_data["team_positions"] = payload.get("units", [])
 
         def handle_rf_alert(payload):
             with self._data_lock:
-                alerts = self.latest_data.get('rf_alerts', [])
+                alerts = self.latest_data.get("rf_alerts", [])
                 alerts.append(payload)
-                self.latest_data['rf_alerts'] = alerts[-10:]  # Keep last 10
+                self.latest_data["rf_alerts"] = alerts[-10:]  # Keep last 10
 
         def handle_wifi_alert(payload):
             with self._data_lock:
-                alerts = self.latest_data.get('wifi_alerts', [])
+                alerts = self.latest_data.get("wifi_alerts", [])
                 alerts.append(payload)
-                self.latest_data['wifi_alerts'] = alerts[-10:]  # Keep last 10
+                self.latest_data["wifi_alerts"] = alerts[-10:]  # Keep last 10
 
         def handle_radio_status(payload):
             with self._data_lock:
-                self.latest_data['radio_status'] = payload
+                self.latest_data["radio_status"] = payload
 
         def handle_atak_data(payload):
             with self._data_lock:
-                self.latest_data['atak_data'] = payload
+                self.latest_data["atak_data"] = payload
 
         def handle_heartbeat(payload):
             pass

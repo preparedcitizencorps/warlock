@@ -3,8 +3,9 @@
 These tests verify the essential message format contracts, not implementation details.
 """
 
-import pytest
 import time
+
+import pytest
 from common.protocol import MessageType, create_message, validate_message
 
 
@@ -13,11 +14,7 @@ class TestMessageProtocol:
 
     def test_create_message_has_required_fields(self):
         """Messages must have type, source_id, timestamp, and payload."""
-        msg = create_message(
-            MessageType.GPS_UPDATE,
-            "TEST-BMU",
-            {"latitude": 38.0, "longitude": -104.0}
-        )
+        msg = create_message(MessageType.GPS_UPDATE, "TEST-BMU", {"latitude": 38.0, "longitude": -104.0})
 
         assert "type" in msg
         assert "source_id" in msg
@@ -51,21 +48,13 @@ class TestMessageProtocol:
 
     def test_validate_message_rejects_missing_fields(self):
         """Messages missing required fields should fail validation."""
-        incomplete = {
-            "type": "gps_update",
-            "source_id": "TEST"
-        }
+        incomplete = {"type": "gps_update", "source_id": "TEST"}
 
         assert validate_message(incomplete) is False
 
     def test_validate_message_rejects_invalid_type(self):
         """Messages with invalid type should fail validation."""
-        invalid = {
-            "type": "INVALID_TYPE_NOT_IN_ENUM",
-            "source_id": "TEST",
-            "timestamp": time.time(),
-            "payload": {}
-        }
+        invalid = {"type": "INVALID_TYPE_NOT_IN_ENUM", "source_id": "TEST", "timestamp": time.time(), "payload": {}}
 
         assert validate_message(invalid) is False
 

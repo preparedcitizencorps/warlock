@@ -5,8 +5,14 @@ Tests verify data models work as expected without being fragile to field changes
 
 import pytest
 from common.data_models import (
-    Position, Detection, FriendlyUnit, RFDetection, WiFiDetection,
-    FriendlyUnitStatus, ThermalStatusLevel, ThermalStatus
+    Detection,
+    FriendlyUnit,
+    FriendlyUnitStatus,
+    Position,
+    RFDetection,
+    ThermalStatus,
+    ThermalStatusLevel,
+    WiFiDetection,
 )
 
 
@@ -16,13 +22,7 @@ class TestDataModelCreation:
     def test_position_can_be_created(self):
         """Position is the most critical data structure."""
         pos = Position(
-            latitude=38.0,
-            longitude=-104.0,
-            altitude=1800.0,
-            heading=270.0,
-            timestamp=0.0,
-            quality=4,
-            num_satellites=12
+            latitude=38.0, longitude=-104.0, altitude=1800.0, heading=270.0, timestamp=0.0, quality=4, num_satellites=12
         )
 
         assert pos.latitude == 38.0
@@ -37,7 +37,7 @@ class TestDataModelCreation:
             bbox=[100.0, 200.0, 50.0, 100.0],
             bearing=45.0,
             distance=25.0,
-            timestamp=0.0
+            timestamp=0.0,
         )
 
         assert det.class_name == "person"
@@ -51,7 +51,7 @@ class TestDataModelCreation:
             position=Position(38.0, -104.0, 1800.0, 0.0, 0.0, 4, 12),
             status=FriendlyUnitStatus.ACTIVE,
             bearing=45.0,
-            distance=100.0
+            distance=100.0,
         )
 
         assert unit.callsign == "ALPHA-1"
@@ -86,11 +86,7 @@ class TestEnumValidation:
 
     def test_thermal_status_can_use_enum(self):
         """ThermalStatus should accept enum values."""
-        status = ThermalStatus(
-            cpu_temp=65.0,
-            status=ThermalStatusLevel.NORMAL,
-            timestamp=0.0
-        )
+        status = ThermalStatus(cpu_temp=65.0, status=ThermalStatusLevel.NORMAL, timestamp=0.0)
 
         assert status.status == ThermalStatusLevel.NORMAL
 
@@ -107,7 +103,7 @@ class TestBboxFormat:
             bbox=[10.0, 20.0, 30.0, 40.0],
             bearing=0.0,
             distance=0.0,
-            timestamp=0.0
+            timestamp=0.0,
         )
 
         assert len(det.bbox) == 4
@@ -122,7 +118,7 @@ class TestBboxFormat:
             bbox=[10.0, 20.0, 30.0, 40.0],
             bearing=0.0,
             distance=0.0,
-            timestamp=0.0
+            timestamp=0.0,
         )
 
         assert all(x >= 0 for x in det.bbox)

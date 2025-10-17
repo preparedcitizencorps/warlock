@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Network protocol definitions for HMU-BMU communication."""
 
-from enum import Enum
-from typing import Dict, Any
 import time
+from enum import Enum
+from typing import Any, Dict
 
 
 class MessageType(Enum):
@@ -34,12 +34,14 @@ class MessageType(Enum):
 
 class Transport(Enum):
     """Transport layer types."""
+
     TCP = "tcp"
     UDP = "udp"
 
 
 class ConnectionStatus(Enum):
     """Connection status."""
+
     DISCONNECTED = "disconnected"
     CONNECTING = "connecting"
     CONNECTED = "connected"
@@ -59,12 +61,7 @@ def create_message(msg_type: MessageType, source_id: str, payload: Dict[str, Any
     Returns:
         Formatted message dictionary
     """
-    return {
-        "type": msg_type.value,
-        "source_id": source_id,
-        "timestamp": time.time(),
-        "payload": payload
-    }
+    return {"type": msg_type.value, "source_id": source_id, "timestamp": time.time(), "payload": payload}
 
 
 def validate_message(message: Dict[str, Any]) -> bool:
@@ -106,7 +103,6 @@ MESSAGE_TRANSPORT = {
     MessageType.SENSOR_TELEMETRY: (Transport.UDP, 10),
     MessageType.USER_INPUT: (Transport.TCP, None),
     MessageType.FRAME_METADATA: (Transport.UDP, 30),
-
     # BMU → HMU
     MessageType.HEARTBEAT_BMU: (Transport.UDP, 1),
     MessageType.GPS_UPDATE: (Transport.UDP, 10),
@@ -115,7 +111,6 @@ MESSAGE_TRANSPORT = {
     MessageType.WIFI_ALERT: (Transport.TCP, None),
     MessageType.RADIO_STATUS: (Transport.UDP, 1),
     MessageType.ATAK_DATA: (Transport.TCP, None),
-
     # Bidirectional
     MessageType.CAPABILITY_EXCHANGE: (Transport.TCP, None),
     MessageType.TIME_SYNC: (Transport.UDP, 1),

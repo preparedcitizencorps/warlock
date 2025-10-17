@@ -2,13 +2,14 @@
 """Shared data models for WARLOCK HMU and BMU communication."""
 
 from dataclasses import dataclass, field
-from typing import List, Optional
 from enum import Enum
+from typing import List, Optional
 
 
 @dataclass
 class Position:
     """GPS position with heading and altitude."""
+
     latitude: float
     longitude: float
     altitude: float
@@ -21,6 +22,7 @@ class Position:
 @dataclass
 class Detection:
     """Object detection from YOLO."""
+
     class_id: int
     class_name: str
     confidence: float
@@ -32,6 +34,7 @@ class Detection:
 
 class FriendlyUnitStatus(Enum):
     """Team member status types."""
+
     ACTIVE = "active"
     WOUNDED = "wounded"
     KIA = "kia"
@@ -40,6 +43,7 @@ class FriendlyUnitStatus(Enum):
 @dataclass
 class FriendlyUnit:
     """Team member position and status."""
+
     id: str
     callsign: str
     position: Position
@@ -50,6 +54,7 @@ class FriendlyUnit:
 
 class RFClassification(Enum):
     """RF signal classification types."""
+
     RADIO = "radio"
     DRONE = "drone"
     JAMMER = "jammer"
@@ -59,6 +64,7 @@ class RFClassification(Enum):
 @dataclass
 class RFDetection:
     """RF signal detection from RTL-SDR."""
+
     frequency: float  # Hz
     signal_strength: float  # dBm
     bearing: Optional[float] = None  # If triangulated (degrees)
@@ -70,6 +76,7 @@ class RFDetection:
 @dataclass
 class WiFiDetection:
     """WiFi CSI detection."""
+
     mac_address: str
     ssid: Optional[str] = None
     signal_strength: float = 0.0  # dBm
@@ -82,6 +89,7 @@ class WiFiDetection:
 @dataclass
 class IMUData:
     """Inertial measurement unit data."""
+
     heading: float  # degrees (0-360, 0=North)
     pitch: float  # degrees (-90 to 90)
     roll: float  # degrees (-180 to 180)
@@ -94,6 +102,7 @@ class IMUData:
 @dataclass
 class BatteryStatus:
     """Battery voltage and percentage."""
+
     voltage: float  # Volts
     percent: int  # 0-100
     charging: bool = False
@@ -102,6 +111,7 @@ class BatteryStatus:
 
 class ThermalStatusLevel(Enum):
     """Thermal status levels."""
+
     NORMAL = "normal"
     WARNING = "warning"
     CRITICAL = "critical"
@@ -110,6 +120,7 @@ class ThermalStatusLevel(Enum):
 @dataclass
 class ThermalStatus:
     """Thermal monitoring data."""
+
     cpu_temp: float  # °C
     gpu_temp: Optional[float] = None  # °C
     status: ThermalStatusLevel = ThermalStatusLevel.NORMAL

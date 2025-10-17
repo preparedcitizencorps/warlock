@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """Auto-exposure plugin for automatic camera brightness adjustment in low-light conditions."""
 
-import cv2
-import numpy as np
 import sys
 from pathlib import Path
 from typing import Optional
 
+import cv2
+import numpy as np
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from common.plugin_base import HUDPlugin, HUDContext, PluginConfig, PluginMetadata
+from common.plugin_base import HUDContext, HUDPlugin, PluginConfig, PluginMetadata
 from core.camera_controller import CameraController
 
 
@@ -58,24 +59,24 @@ class AutoExposurePlugin(HUDPlugin):
         version="1.0.0",
         author="Project WARLOCK Team",
         description="Automatic camera exposure and brightness adjustment for low-light conditions",
-        provides=['camera_brightness', 'auto_exposure_active'],
-        consumes=[]
+        provides=["camera_brightness", "auto_exposure_active"],
+        consumes=[],
     )
 
     def __init__(self, context: HUDContext, config: PluginConfig):
         super().__init__(context, config)
 
-        self.target_brightness = self.get_setting('target_brightness', self.DEFAULT_TARGET_BRIGHTNESS)
-        self.brightness_tolerance = self.get_setting('brightness_tolerance', self.DEFAULT_BRIGHTNESS_TOLERANCE)
-        self.adjustment_speed = self.get_setting('adjustment_speed', self.DEFAULT_ADJUSTMENT_SPEED)
-        self.min_exposure = self.get_setting('min_exposure', self.DEFAULT_MIN_EXPOSURE)
-        self.max_exposure = self.get_setting('max_exposure', self.DEFAULT_MAX_EXPOSURE)
-        self.min_gain = self.get_setting('min_gain', self.DEFAULT_MIN_GAIN)
-        self.max_gain = self.get_setting('max_gain', self.DEFAULT_MAX_GAIN)
-        self.use_histogram_eq = self.get_setting('use_histogram_eq', self.DEFAULT_USE_HISTOGRAM_EQ)
-        self.use_clahe = self.get_setting('use_clahe', self.DEFAULT_USE_CLAHE)
-        self.enable_auto_gain = self.get_setting('enable_auto_gain', self.DEFAULT_ENABLE_AUTO_GAIN)
-        self.enable_auto_exposure = self.get_setting('enable_auto_exposure', self.DEFAULT_ENABLE_AUTO_EXPOSURE)
+        self.target_brightness = self.get_setting("target_brightness", self.DEFAULT_TARGET_BRIGHTNESS)
+        self.brightness_tolerance = self.get_setting("brightness_tolerance", self.DEFAULT_BRIGHTNESS_TOLERANCE)
+        self.adjustment_speed = self.get_setting("adjustment_speed", self.DEFAULT_ADJUSTMENT_SPEED)
+        self.min_exposure = self.get_setting("min_exposure", self.DEFAULT_MIN_EXPOSURE)
+        self.max_exposure = self.get_setting("max_exposure", self.DEFAULT_MAX_EXPOSURE)
+        self.min_gain = self.get_setting("min_gain", self.DEFAULT_MIN_GAIN)
+        self.max_gain = self.get_setting("max_gain", self.DEFAULT_MAX_GAIN)
+        self.use_histogram_eq = self.get_setting("use_histogram_eq", self.DEFAULT_USE_HISTOGRAM_EQ)
+        self.use_clahe = self.get_setting("use_clahe", self.DEFAULT_USE_CLAHE)
+        self.enable_auto_gain = self.get_setting("enable_auto_gain", self.DEFAULT_ENABLE_AUTO_GAIN)
+        self.enable_auto_exposure = self.get_setting("enable_auto_exposure", self.DEFAULT_ENABLE_AUTO_EXPOSURE)
 
         self.current_exposure: Optional[float] = None
         self.current_gain: Optional[float] = None
@@ -86,15 +87,12 @@ class AutoExposurePlugin(HUDPlugin):
         self.show_stats = True
 
         if self.use_clahe:
-            self.clahe = cv2.createCLAHE(
-                clipLimit=self.CLAHE_CLIP_LIMIT,
-                tileGridSize=self.CLAHE_TILE_GRID_SIZE
-            )
+            self.clahe = cv2.createCLAHE(clipLimit=self.CLAHE_CLIP_LIMIT, tileGridSize=self.CLAHE_TILE_GRID_SIZE)
 
     def initialize(self) -> bool:
         print("Auto Exposure Plugin: Initializing...")
 
-        self.camera_controller = self.get_data('camera_handle', None)
+        self.camera_controller = self.get_data("camera_handle", None)
 
         if self.camera_controller is not None:
             self._initialize_camera_settings()
@@ -132,7 +130,7 @@ class AutoExposurePlugin(HUDPlugin):
 
         h, w = gray.shape
         center_h, center_w = h // 4, w // 4
-        center_region = gray[center_h:3*center_h, center_w:3*center_w]
+        center_region = gray[center_h : 3 * center_h, center_w : 3 * center_w]
 
         full_brightness = np.mean(gray)
         center_brightness = np.mean(center_region)
@@ -156,11 +154,7 @@ class AutoExposurePlugin(HUDPlugin):
             if self.current_exposure is None:
                 self.current_exposure = self.camera_controller.get_exposure()
 
-            new_exposure = np.clip(
-                self.current_exposure + adjustment,
-                self.min_exposure,
-                self.max_exposure
-            )
+            new_exposure = np.clip(self.current_exposure + adjustment, self.min_exposure, self.max_exposure)
 
             if self.camera_controller.set_exposure(new_exposure):
                 self.current_exposure = new_exposure
@@ -187,11 +181,7 @@ class AutoExposurePlugin(HUDPlugin):
             if self.current_gain is None:
                 self.current_gain = self.camera_controller.get_gain()
 
-            new_gain = np.clip(
-                self.current_gain + adjustment,
-                self.min_gain,
-                self.max_gain
-            )
+            new_gain = np.clip(self.current_gain + adjustment, self.min_gain, self.max_gain)
 
             if self.camera_controller.set_gain(new_gain):
                 self.current_gain = new_gain
@@ -220,7 +210,7 @@ class AutoExposurePlugin(HUDPlugin):
         return frame
 
     def update(self, delta_time: float):
-        raw_frame = self.get_data('raw_frame', None)
+        raw_frame = self.get_data("raw_frame", None)
 
         if raw_frame is not None and self.auto_mode_enabled:
             self.current_brightness = self._calculate_scene_brightness(raw_frame)
@@ -228,14 +218,14 @@ class AutoExposurePlugin(HUDPlugin):
             self._adjust_exposure(self.current_brightness)
             self._adjust_gain(self.current_brightness)
 
-            self.provide_data('camera_brightness', self.current_brightness)
-            self.provide_data('auto_exposure_active', self.auto_mode_enabled)
+            self.provide_data("camera_brightness", self.current_brightness)
+            self.provide_data("auto_exposure_active", self.auto_mode_enabled)
 
     def render(self, frame: np.ndarray) -> np.ndarray:
         if not self.visible:
             return frame
 
-        self.provide_data('raw_frame', frame.copy())
+        self.provide_data("raw_frame", frame.copy())
 
         self.current_brightness = self._calculate_scene_brightness(frame)
 
@@ -260,13 +250,7 @@ class AutoExposurePlugin(HUDPlugin):
 
         y_start = self.DISPLAY_POSITION_Y - 5
         y_end = y_start + len(stats) * self.DISPLAY_LINE_HEIGHT + 10
-        cv2.rectangle(
-            frame,
-            (self.DISPLAY_POSITION_X - 5, y_start),
-            (250, y_end),
-            (0, 0, 0),
-            -1
-        )
+        cv2.rectangle(frame, (self.DISPLAY_POSITION_X - 5, y_start), (250, y_end), (0, 0, 0), -1)
 
         for i, stat in enumerate(stats):
             y_pos = self.DISPLAY_POSITION_Y + i * self.DISPLAY_LINE_HEIGHT + 10
@@ -278,25 +262,25 @@ class AutoExposurePlugin(HUDPlugin):
                 self.DISPLAY_FONT_SCALE,
                 self.DISPLAY_COLOR,
                 self.DISPLAY_FONT_THICKNESS,
-                cv2.LINE_AA
+                cv2.LINE_AA,
             )
 
         return frame
 
     def handle_key(self, key: int) -> bool:
-        if key == ord('e'):
+        if key == ord("e"):
             self.auto_mode_enabled = not self.auto_mode_enabled
             status = "ENABLED" if self.auto_mode_enabled else "DISABLED"
             print(f"Auto Exposure: {status}")
             return True
-        elif key == ord('o'):
+        elif key == ord("o"):
             self.show_stats = not self.show_stats
             return True
-        elif key == ord('+') or key == ord('='):
+        elif key == ord("+") or key == ord("="):
             self.target_brightness = min(255, self.target_brightness + self.TARGET_BRIGHTNESS_STEP)
             print(f"Auto Exposure: Target brightness = {self.target_brightness}")
             return True
-        elif key == ord('-') or key == ord('_'):
+        elif key == ord("-") or key == ord("_"):
             self.target_brightness = max(0, self.target_brightness - self.TARGET_BRIGHTNESS_STEP)
             print(f"Auto Exposure: Target brightness = {self.target_brightness}")
             return True

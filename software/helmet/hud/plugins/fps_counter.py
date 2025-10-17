@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """Simple FPS counter displayed in top-right corner."""
 
-import cv2
-import numpy as np
 import sys
 from pathlib import Path
 
+import cv2
+import numpy as np
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from common.plugin_base import HUDPlugin, HUDContext, PluginConfig, PluginMetadata, PluginPosition
+from common.plugin_base import HUDContext, HUDPlugin, PluginConfig, PluginMetadata, PluginPosition
 
 
 class FPSCounterPlugin(HUDPlugin):
@@ -21,10 +22,7 @@ class FPSCounterPlugin(HUDPlugin):
     TEXT_THICKNESS = 1
 
     METADATA = PluginMetadata(
-        name="FPS Counter",
-        version="1.0.0",
-        author="Project WARLOCK Team",
-        description="Displays current FPS"
+        name="FPS Counter", version="1.0.0", author="Project WARLOCK Team", description="Displays current FPS"
     )
 
     def __init__(self, context: HUDContext, config: PluginConfig):
@@ -33,7 +31,7 @@ class FPSCounterPlugin(HUDPlugin):
         self.fps = 0.0
         self.frame_count = 0
         # Validate fps_update_interval to prevent division by zero
-        configured_interval = self.get_setting('fps_update_interval', self.DEFAULT_UPDATE_INTERVAL_SECONDS)
+        configured_interval = self.get_setting("fps_update_interval", self.DEFAULT_UPDATE_INTERVAL_SECONDS)
         if configured_interval <= 0:
             self.fps_update_interval = self.DEFAULT_UPDATE_INTERVAL_SECONDS
         else:
@@ -42,7 +40,7 @@ class FPSCounterPlugin(HUDPlugin):
 
         self.text_color = (220, 220, 210)
 
-        self.visible = self.get_setting('visible', self.DEFAULT_VISIBILITY)
+        self.visible = self.get_setting("visible", self.DEFAULT_VISIBILITY)
 
     def initialize(self) -> bool:
         self.config.position = PluginPosition.TOP_RIGHT
@@ -69,7 +67,7 @@ class FPSCounterPlugin(HUDPlugin):
             self._calculate_fps()
 
     def _calculate_screen_position(self, x: int) -> int:
-        if not hasattr(self.context, 'frame_width') or not isinstance(self.context.frame_width, int):
+        if not hasattr(self.context, "frame_width") or not isinstance(self.context.frame_width, int):
             raise ValueError("HUDContext must have a valid frame_width (int)")
 
         if x < 0:
@@ -80,9 +78,16 @@ class FPSCounterPlugin(HUDPlugin):
         return f"FPS: {self.fps:.1f}"
 
     def _draw_fps_text(self, frame: np.ndarray, text: str, x: int, y: int):
-        cv2.putText(frame, text, (x, y + self.TEXT_Y_OFFSET),
-                   cv2.FONT_HERSHEY_SIMPLEX, self.TEXT_FONT_SCALE,
-                   self.text_color, self.TEXT_THICKNESS, cv2.LINE_AA)
+        cv2.putText(
+            frame,
+            text,
+            (x, y + self.TEXT_Y_OFFSET),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            self.TEXT_FONT_SCALE,
+            self.text_color,
+            self.TEXT_THICKNESS,
+            cv2.LINE_AA,
+        )
 
     def render(self, frame: np.ndarray) -> np.ndarray:
         if not self.visible:
@@ -97,7 +102,7 @@ class FPSCounterPlugin(HUDPlugin):
         return frame
 
     def handle_key(self, key: int) -> bool:
-        if key == ord('f'):
+        if key == ord("f"):
             self.toggle_visibility()
             print(f"FPS Counter: {'ON' if self.visible else 'OFF'}")
             return True

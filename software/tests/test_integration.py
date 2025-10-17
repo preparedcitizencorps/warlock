@@ -1,13 +1,14 @@
-import pytest
 import sys
 from pathlib import Path
+
 import numpy as np
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from common.config_loader import create_plugin_config, load_config
 from common.plugin_base import HUDContext
 from helmet.hud.plugin_manager import PluginManager
-from common.config_loader import load_config, create_plugin_config
 
 
 class TestPluginSystemIntegration:
@@ -24,8 +25,8 @@ class TestPluginSystemIntegration:
         assert len(discovered) > 0, "Should discover at least one plugin"
         for name, plugin_class in discovered.items():
             from common.plugin_base import HUDPlugin
-            assert issubclass(plugin_class, HUDPlugin), \
-                f"{name} must be a subclass of HUDPlugin"
+
+            assert issubclass(plugin_class, HUDPlugin), f"{name} must be a subclass of HUDPlugin"
 
     def test_can_load_all_configured_plugins(self):
         """All enabled plugins in config should load successfully."""
@@ -38,10 +39,10 @@ class TestPluginSystemIntegration:
         config = load_config(str(config_path))
 
         plugin_configs = []
-        for plugin_data in config.get('plugins', []):
-            if not plugin_data.get('enabled', True):
+        for plugin_data in config.get("plugins", []):
+            if not plugin_data.get("enabled", True):
                 continue
-            plugin_name = plugin_data['name']
+            plugin_name = plugin_data["name"]
             plugin_config = create_plugin_config(plugin_data)
             plugin_configs.append((plugin_name, plugin_config))
 
@@ -55,14 +56,14 @@ class TestPluginSystemIntegration:
         """Basic render pipeline should complete without crashing."""
         self.manager.discover_plugins()
 
-        from tests.fixtures.mock_plugins import ProviderPlugin, IndependentPlugin
+        from tests.fixtures.mock_plugins import IndependentPlugin, ProviderPlugin
 
-        self.manager.plugin_classes['ProviderPlugin'] = ProviderPlugin
-        self.manager.plugin_classes['IndependentPlugin'] = IndependentPlugin
+        self.manager.plugin_classes["ProviderPlugin"] = ProviderPlugin
+        self.manager.plugin_classes["IndependentPlugin"] = IndependentPlugin
 
         configs = [
-            ('ProviderPlugin', create_plugin_config({'z_index': 1})),
-            ('IndependentPlugin', create_plugin_config({'z_index': 2}))
+            ("ProviderPlugin", create_plugin_config({"z_index": 1})),
+            ("IndependentPlugin", create_plugin_config({"z_index": 2})),
         ]
 
         loaded = self.manager.load_plugins_with_dependencies(configs)
@@ -98,13 +99,10 @@ class TestPluginSystemIntegration:
                 frame[0, 0] = [2, 0, 0]
                 return frame
 
-        self.manager.plugin_classes = {
-            'LowZPlugin': LowZPlugin,
-            'HighZPlugin': HighZPlugin
-        }
+        self.manager.plugin_classes = {"LowZPlugin": LowZPlugin, "HighZPlugin": HighZPlugin}
 
-        low_config = create_plugin_config({'z_index': 1})
-        high_config = create_plugin_config({'z_index': 10})
+        low_config = create_plugin_config({"z_index": 1})
+        high_config = create_plugin_config({"z_index": 10})
 
         self.manager.load_plugin(HighZPlugin, high_config)
         self.manager.load_plugin(LowZPlugin, low_config)
@@ -123,17 +121,17 @@ class TestEventSystem:
 
     def test_events_can_be_emitted(self):
         """Plugins should be able to emit events."""
-        self.context.emit_event('test_event', {'key': 'value'})
+        self.context.emit_event("test_event", {"key": "value"})
 
-        events = self.context.get_events('test_event')
+        events = self.context.get_events("test_event")
 
         assert len(events) == 1
-        assert events[0]['type'] == 'test_event'
-        assert events[0]['data']['key'] == 'value'
+        assert events[0]["type"] == "test_event"
+        assert events[0]["data"]["key"] == "value"
 
     def test_events_cleared_each_frame(self):
         """Events should be cleared after each frame."""
-        self.context.emit_event('test_event', {})
+        self.context.emit_event("test_event", {})
 
         assert len(self.context.events) == 1
 
@@ -153,12 +151,12 @@ class TestConfigLoading:
 
         config = load_config(str(config_path))
 
-        assert 'plugins' in config
-        assert isinstance(config['plugins'], list)
+        assert "plugins" in config
+        assert isinstance(config["plugins"], list)
 
     def test_handles_missing_config_gracefully(self):
         """Should return default config when file missing."""
         config = load_config("nonexistent.yaml")
 
-        assert 'plugins' in config
-        assert config['plugins'] == []
+        assert "plugins" in config
+        assert config["plugins"] == []

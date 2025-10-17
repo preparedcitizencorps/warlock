@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
-import pytest
 import sys
 from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -17,12 +18,12 @@ def test_dependency_order():
     plugin_manager.discover_plugins()
 
     test_plugins = [
-        'CompassPlugin',
-        'YOLODetectionPlugin',
-        'MiniMapPlugin',
-        'BorderPaddingPlugin',
-        'FPSCounterPlugin',
-        'PluginControlPanel',
+        "CompassPlugin",
+        "YOLODetectionPlugin",
+        "MiniMapPlugin",
+        "BorderPaddingPlugin",
+        "FPSCounterPlugin",
+        "PluginControlPanel",
     ]
 
     sorted_plugins = plugin_manager.topological_sort_plugins(test_plugins)
@@ -41,12 +42,12 @@ def test_render_order_by_z_index():
     plugin_manager.discover_plugins()
 
     test_plugins = [
-        'BorderPaddingPlugin',
-        'MiniMapPlugin',
-        'CompassPlugin',
-        'YOLODetectionPlugin',
-        'FPSCounterPlugin',
-        'PluginControlPanel',
+        "BorderPaddingPlugin",
+        "MiniMapPlugin",
+        "CompassPlugin",
+        "YOLODetectionPlugin",
+        "FPSCounterPlugin",
+        "PluginControlPanel",
     ]
 
     z_indices = {}
@@ -60,9 +61,10 @@ def test_render_order_by_z_index():
 
     actual_render_order = sorted(test_plugins, key=lambda p: z_indices.get(p, 0))
 
-    assert actual_render_order == expected_render_order, \
-        f"Render order mismatch: {actual_render_order} != {expected_render_order}"
+    assert (
+        actual_render_order == expected_render_order
+    ), f"Render order mismatch: {actual_render_order} != {expected_render_order}"
 
 
 if __name__ == "__main__":
-    pytest.main([__file__, '-v'])
+    pytest.main([__file__, "-v"])

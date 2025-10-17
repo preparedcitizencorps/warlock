@@ -9,25 +9,23 @@ This unit handles:
 - Communication with Body-Mounted Unit (BMU) for GPS, team data, alerts
 """
 
-import cv2
 import logging
+import sys
 import time
 from pathlib import Path
-import sys
+
+import cv2
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from common.plugin_base import HUDContext
-from common.config_loader import load_config, create_plugin_config
+from common.config_loader import create_plugin_config, load_config
 from common.input_manager import InputManager
-from helmet.hud.plugin_manager import PluginManager
+from common.plugin_base import HUDContext
 from helmet.core.camera_controller import CameraController
 from helmet.core.network_client import HMUNetworkClient
+from helmet.hud.plugin_manager import PluginManager
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -70,14 +68,14 @@ class HMUApplication:
         script_dir = Path(__file__).parent
         plugin_dir = str(script_dir / "hud" / "plugins")
         self.plugin_manager = PluginManager(self.context, plugin_dir=plugin_dir)
-        self.context.state['plugin_manager'] = self.plugin_manager
+        self.context.state["plugin_manager"] = self.plugin_manager
 
         logger.info("Discovering plugins...")
         self.plugin_manager.discover_plugins()
 
         logger.info("Initializing input system...")
         self.input_manager = self._initialize_input_manager(config)
-        self.context.state['input_manager'] = self.input_manager
+        self.context.state["input_manager"] = self.input_manager
 
         logger.info("Loading plugins...")
         plugin_configs, visibility_map = self._prepare_plugin_configs(config)
@@ -102,20 +100,20 @@ class HMUApplication:
         cap.set(cv2.CAP_PROP_FPS, 30)
 
         self.camera = CameraController(cap)
-        self.context.state['camera_handle'] = self.camera
+        self.context.state["camera_handle"] = self.camera
 
         if self.network_enabled:
             logger.info("Connecting to BMU...")
-            bmu_config = config.get('network', {})
-            bmu_host = bmu_config.get('bmu_host', '192.168.200.2')
-            source_id = bmu_config.get('source_id', 'WARLOCK-001-HMU')
+            bmu_config = config.get("network", {})
+            bmu_host = bmu_config.get("bmu_host", "192.168.200.2")
+            source_id = bmu_config.get("source_id", "WARLOCK-001-HMU")
 
             self.network_client = HMUNetworkClient(source_id=source_id, server_host=bmu_host)
             self.network_client.register_default_handlers()
 
             if self.network_client.connect():
                 logger.info("Connected to BMU")
-                self.context.state['network_client'] = self.network_client
+                self.context.state["network_client"] = self.network_client
             else:
                 logger.warning("Failed to connect to BMU - running in standalone mode")
                 self.network_enabled = False
@@ -129,22 +127,22 @@ class HMUApplication:
 
     def _setup_simulated_data(self):
         """Setup simulated GPS and team data for standalone mode."""
-        self.context.state['player_position'] = {
-            'latitude': 38.8339,
-            'longitude': -104.8214,
-            'altitude': 1839,
-            'heading': 0.0
+        self.context.state["player_position"] = {
+            "latitude": 38.8339,
+            "longitude": -104.8214,
+            "altitude": 1839,
+            "heading": 0.0,
         }
 
-        self.context.state['friendly_units'] = [
+        self.context.state["friendly_units"] = [
             {
-                'id': 'alpha-1',
-                'callsign': 'ALPHA-1',
-                'latitude': 38.8350,
-                'longitude': -104.8200,
-                'bearing': 45,
-                'distance': 200,
-                'status': 'active'
+                "id": "alpha-1",
+                "callsign": "ALPHA-1",
+                "latitude": 38.8350,
+                "longitude": -104.8200,
+                "bearing": 45,
+                "distance": 200,
+                "status": "active",
             }
         ]
 
@@ -152,13 +150,13 @@ class HMUApplication:
         """Initialize InputManager with keybinds from config."""
         input_manager = InputManager()
 
-        keybinds_config = config.get('keybinds', {})
+        keybinds_config = config.get("keybinds", {})
 
-        system_binds = keybinds_config.get('system', {})
+        system_binds = keybinds_config.get("system", {})
         if system_binds:
-            input_manager.register_keybind(system_binds.get('quit', 'q'), 'Quit', 'system')
-            input_manager.register_keybind(system_binds.get('help', 'h'), 'Toggle help', 'system')
-            input_manager.register_keybind(system_binds.get('plugin_panel', 'p'), 'Plugin control panel', 'system')
+            input_manager.register_keybind(system_binds.get("quit", "q"), "Quit", "system")
+            input_manager.register_keybind(system_binds.get("help", "h"), "Toggle help", "system")
+            input_manager.register_keybind(system_binds.get("plugin_panel", "p"), "Plugin control panel", "system")
 
         return input_manager
 
@@ -167,14 +165,14 @@ class HMUApplication:
         plugin_configs = []
         visibility_map = {}
 
-        for plugin_data in config.get('plugins', []):
-            if not plugin_data.get('enabled', True):
+        for plugin_data in config.get("plugins", []):
+            if not plugin_data.get("enabled", True):
                 continue
 
-            plugin_name = plugin_data['name']
+            plugin_name = plugin_data["name"]
             plugin_config = create_plugin_config(plugin_data)
             plugin_configs.append((plugin_name, plugin_config))
-            visibility_map[plugin_name] = plugin_data.get('visible', True)
+            visibility_map[plugin_name] = plugin_data.get("visible", True)
 
         return plugin_configs, visibility_map
 
@@ -196,24 +194,24 @@ class HMUApplication:
                 break
 
             if self.network_enabled and self.network_client:
-                gps_pos = self.network_client.get_latest('gps_position')
+                gps_pos = self.network_client.get_latest("gps_position")
                 if gps_pos:
-                    self.context.state['player_position'] = gps_pos
+                    self.context.state["player_position"] = gps_pos
 
-                team_units = self.network_client.get_latest('team_positions')
+                team_units = self.network_client.get_latest("team_positions")
                 if team_units:
-                    self.context.state['friendly_units'] = team_units
+                    self.context.state["friendly_units"] = team_units
 
-                rf_alerts = self.network_client.get_latest('rf_alerts')
-                wifi_alerts = self.network_client.get_latest('wifi_alerts')
-                self.context.state['rf_alerts'] = rf_alerts or []
-                self.context.state['wifi_alerts'] = wifi_alerts or []
+                rf_alerts = self.network_client.get_latest("rf_alerts")
+                wifi_alerts = self.network_client.get_latest("wifi_alerts")
+                self.context.state["rf_alerts"] = rf_alerts or []
+                self.context.state["wifi_alerts"] = wifi_alerts or []
 
             self.plugin_manager.update()
 
             frame = self.plugin_manager.render(frame)
 
-            cv2.imshow('WARLOCK HMU', frame)
+            cv2.imshow("WARLOCK HMU", frame)
 
             key = cv2.waitKey(1) & 0xFF
 
@@ -226,9 +224,9 @@ class HMUApplication:
 
     def _handle_key(self, key: int):
         """Handle keyboard input."""
-        if key == ord('q'):
+        if key == ord("q"):
             self.running = False
-        elif key == ord('h'):
+        elif key == ord("h"):
             self.show_help = not self.show_help
             logger.info(f"Help overlay: {'ON' if self.show_help else 'OFF'}")
 
@@ -256,15 +254,12 @@ def main():
     """Main entry point."""
     import argparse
 
-    parser = argparse.ArgumentParser(description='WARLOCK Helmet-Mounted Unit')
-    parser.add_argument('--config', type=str, help='Path to helmet_config.yaml')
-    parser.add_argument('--standalone', action='store_true', help='Run without BMU connection')
+    parser = argparse.ArgumentParser(description="WARLOCK Helmet-Mounted Unit")
+    parser.add_argument("--config", type=str, help="Path to helmet_config.yaml")
+    parser.add_argument("--standalone", action="store_true", help="Run without BMU connection")
     args = parser.parse_args()
 
-    app = HMUApplication(
-        config_path=args.config,
-        network_enabled=not args.standalone
-    )
+    app = HMUApplication(config_path=args.config, network_enabled=not args.standalone)
 
     try:
         app.initialize()

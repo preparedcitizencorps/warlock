@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Thread-safe camera controller wrapper for OpenCV VideoCapture."""
 
-import cv2
 import threading
-from typing import Optional, Dict, Tuple
+from typing import Dict, Optional, Tuple
+
+import cv2
 
 
 class CameraController:
@@ -12,19 +13,21 @@ class CameraController:
     Prevents plugins from accidentally releasing the camera or calling destructive methods.
     """
 
-    WHITELISTED_PROPERTIES = frozenset({
-        cv2.CAP_PROP_EXPOSURE,
-        cv2.CAP_PROP_GAIN,
-        cv2.CAP_PROP_BRIGHTNESS,
-        cv2.CAP_PROP_CONTRAST,
-        cv2.CAP_PROP_SATURATION,
-        cv2.CAP_PROP_AUTO_EXPOSURE,
-        cv2.CAP_PROP_AUTO_WB,
-        cv2.CAP_PROP_WB_TEMPERATURE,
-        cv2.CAP_PROP_SHARPNESS,
-        cv2.CAP_PROP_GAMMA,
-        cv2.CAP_PROP_BACKLIGHT,
-    })
+    WHITELISTED_PROPERTIES = frozenset(
+        {
+            cv2.CAP_PROP_EXPOSURE,
+            cv2.CAP_PROP_GAIN,
+            cv2.CAP_PROP_BRIGHTNESS,
+            cv2.CAP_PROP_CONTRAST,
+            cv2.CAP_PROP_SATURATION,
+            cv2.CAP_PROP_AUTO_EXPOSURE,
+            cv2.CAP_PROP_AUTO_WB,
+            cv2.CAP_PROP_WB_TEMPERATURE,
+            cv2.CAP_PROP_SHARPNESS,
+            cv2.CAP_PROP_GAMMA,
+            cv2.CAP_PROP_BACKLIGHT,
+        }
+    )
 
     EXPOSURE_MIN = -13
     EXPOSURE_MAX = 0
@@ -42,7 +45,7 @@ class CameraController:
     def __init__(self, capture: cv2.VideoCapture):
         if capture is None:
             raise ValueError("VideoCapture cannot be None")
-        if not hasattr(capture, 'isOpened'):
+        if not hasattr(capture, "isOpened"):
             raise ValueError("Invalid VideoCapture object: missing isOpened method")
         if not capture.isOpened():
             raise ValueError("VideoCapture is not opened")

@@ -1,23 +1,26 @@
 #!/usr/bin/env python3
 """Circular mini-map with terrain overlay and friendly unit markers."""
 
+import math
+import sys
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import List, Optional, Tuple
+
 import cv2
 import numpy as np
-from typing import List, Optional, Tuple
-import math
-import time
-import sys
 import requests
-from pathlib import Path
-from dataclasses import dataclass
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from common.plugin_base import HUDPlugin, HUDContext, PluginConfig, PluginMetadata, PluginPosition
+from common.plugin_base import HUDContext, HUDPlugin, PluginConfig, PluginMetadata, PluginPosition
+
 
 @dataclass
 class MapTile:
     """Represents a map tile."""
+
     zoom: int
     x: int
     y: int
@@ -34,7 +37,7 @@ class TerrainMapCache:
         self.tile_servers = [
             "https://a.tile.opentopomap.org",
             "https://b.tile.opentopomap.org",
-            "https://c.tile.opentopomap.org"
+            "https://c.tile.opentopomap.org",
         ]
         self.server_index = 0
 
@@ -42,19 +45,17 @@ class TerrainMapCache:
         self.min_request_interval = 0.1
 
         self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'ProjectWARLOCK/0.1 (Tactical HUD System)'
-        })
+        self.session.headers.update({"User-Agent": "ProjectWARLOCK/0.1 (Tactical HUD System)"})
 
     def _lat_lon_to_tile(self, lat: float, lon: float, zoom: int) -> Tuple[int, int]:
         latitude_radians = math.radians(lat)
-        tiles_per_edge = 2.0 ** zoom
+        tiles_per_edge = 2.0**zoom
         tile_x = int((lon + 180.0) / 360.0 * tiles_per_edge)
         tile_y = int((1.0 - math.asinh(math.tan(latitude_radians)) / math.pi) / 2.0 * tiles_per_edge)
         return tile_x, tile_y
 
     def _tile_to_lat_lon(self, x: int, y: int, zoom: int) -> Tuple[float, float]:
-        tiles_per_edge = 2.0 ** zoom
+        tiles_per_edge = 2.0**zoom
         longitude = x / tiles_per_edge * 360.0 - 180.0
         latitude_radians = math.atan(math.sinh(math.pi * (1 - 2 * y / tiles_per_edge)))
         latitude = math.degrees(latitude_radians)
@@ -100,8 +101,9 @@ class TerrainMapCache:
 
         return self._download_tile(zoom, x, y)
 
-    def get_map_region(self, lat: float, lon: float, zoom: int,
-                       width_pixels: int, height_pixels: int) -> Optional[np.ndarray]:
+    def get_map_region(
+        self, lat: float, lon: float, zoom: int, width_pixels: int, height_pixels: int
+    ) -> Optional[np.ndarray]:
         """Get a map region centered on lat/lon."""
         center_x, center_y = self._lat_lon_to_tile(lat, lon, zoom)
 
@@ -128,7 +130,7 @@ class TerrainMapCache:
 
         composite = np.vstack(tiles)
 
-        n = 2.0 ** zoom
+        n = 2.0**zoom
         pixel_x = ((lon + 180.0) / 360.0 * n - start_x) * tile_size
         pixel_y = ((1.0 - math.asinh(math.tan(math.radians(lat))) / math.pi) / 2.0 * n - start_y) * tile_size
 
@@ -147,7 +149,7 @@ class TerrainMapCache:
             padded = np.zeros((height_pixels, width_pixels, 3), dtype=np.uint8)
             valid_h = min(height_pixels, h - y1)
             valid_w = min(width_pixels, w - x1)
-            padded[:valid_h, :valid_w] = composite[y1:y1+valid_h, x1:x1+valid_w]
+            padded[:valid_h, :valid_w] = composite[y1 : y1 + valid_h, x1 : x1 + valid_w]
             return padded
 
         return composite[y1:y2, x1:x2]
@@ -189,29 +191,27 @@ class TerrainOverlay:
         else:
             return 12
 
-    def get_overlay(self, lat: float, lon: float, heading: float,
-                   width: int, height: int, radius_meters: float = 300) -> Optional[np.ndarray]:
+    def get_overlay(
+        self, lat: float, lon: float, heading: float, width: int, height: int, radius_meters: float = 300
+    ) -> Optional[np.ndarray]:
         """Get rotated terrain overlay for current position."""
         current_time = time.time()
 
         needs_update = (
-            self.current_map_unrotated is None or
-            current_time - self.last_update_time > self.update_interval or
-            self.last_lat is None or
-            self.last_lon is None or
-            abs(lat - self.last_lat) > 0.0001 or
-            abs(lon - self.last_lon) > 0.0001 or
-            self.last_radius_meters != radius_meters
+            self.current_map_unrotated is None
+            or current_time - self.last_update_time > self.update_interval
+            or self.last_lat is None
+            or self.last_lon is None
+            or abs(lat - self.last_lat) > 0.0001
+            or abs(lon - self.last_lon) > 0.0001
+            or self.last_radius_meters != radius_meters
         )
 
         if needs_update:
             zoom_level = self._calculate_zoom_for_radius(radius_meters)
             fetch_size = max(width, height) * 3
 
-            self.current_map_unrotated = self.cache.get_map_region(
-                lat, lon, zoom_level,
-                fetch_size, fetch_size
-            )
+            self.current_map_unrotated = self.cache.get_map_region(lat, lon, zoom_level, fetch_size, fetch_size)
             self.last_update_time = current_time
             self.last_lat = lat
             self.last_lon = lon
@@ -227,10 +227,14 @@ class TerrainOverlay:
         # We want the map to rotate so the player's forward direction points up
         # cv2 rotates positive angles counterclockwise, so we use +heading to rotate clockwise
         rotation_matrix = cv2.getRotationMatrix2D(center, heading, 1.0)
-        rotated = cv2.warpAffine(self.current_map_unrotated, rotation_matrix, (w, h),
-                                 flags=cv2.INTER_LINEAR,
-                                 borderMode=cv2.BORDER_CONSTANT,
-                                 borderValue=(0, 0, 0))
+        rotated = cv2.warpAffine(
+            self.current_map_unrotated,
+            rotation_matrix,
+            (w, h),
+            flags=cv2.INTER_LINEAR,
+            borderMode=cv2.BORDER_CONSTANT,
+            borderValue=(0, 0, 0),
+        )
 
         x1 = (w - width) // 2
         y1 = (h - height) // 2
@@ -282,7 +286,7 @@ class MiniMapPlugin(HUDPlugin):
         description="Circular mini-map with terrain overlay and friendly unit positioning",
         dependencies=[],
         provides=[],
-        consumes=['border_padding']
+        consumes=["border_padding"],
     )
 
     def __init__(self, context: HUDContext, config: PluginConfig):
@@ -290,8 +294,8 @@ class MiniMapPlugin(HUDPlugin):
 
         self.player_pos: Optional[dict] = None
         self.friendly_units: List[dict] = []
-        self.zoom_level = self.get_setting('zoom_level', 300)
-        self.show_terrain = self.get_setting('show_terrain', True)
+        self.zoom_level = self.get_setting("zoom_level", 300)
+        self.show_terrain = self.get_setting("show_terrain", True)
 
         if self.show_terrain:
             self.terrain = TerrainOverlay()
@@ -318,21 +322,17 @@ class MiniMapPlugin(HUDPlugin):
 
     def update(self, delta_time: float):
         """Update mini-map state from context."""
-        if 'player_position' in self.context.state:
-            self.player_pos = self.context.state['player_position']
+        if "player_position" in self.context.state:
+            self.player_pos = self.context.state["player_position"]
 
-        if 'friendly_units' in self.context.state:
-            self.friendly_units = self.context.state['friendly_units']
+        if "friendly_units" in self.context.state:
+            self.friendly_units = self.context.state["friendly_units"]
 
     def _get_border_padding_data(self) -> dict:
         """Get current border padding values (soft dependency)."""
-        return self.get_data('border_padding', {
-            'padding_left': 0,
-            'padding_bottom': 0
-        })
+        return self.get_data("border_padding", {"padding_left": 0, "padding_bottom": 0})
 
-    def _lat_lon_to_meters(self, lat1: float, lon1: float,
-                          lat2: float, lon2: float) -> Tuple[float, float]:
+    def _lat_lon_to_meters(self, lat1: float, lon1: float, lat2: float, lon2: float) -> Tuple[float, float]:
         """Convert lat/lon difference to meters."""
         lat_diff = lat2 - lat1
         lon_diff = lon2 - lon1
@@ -353,8 +353,8 @@ class MiniMapPlugin(HUDPlugin):
             return frame
 
         border_padding = self._get_border_padding_data()
-        padding_left = border_padding.get('padding_left', 0)
-        padding_bottom = border_padding.get('padding_bottom', 0)
+        padding_left = border_padding.get("padding_left", 0)
+        padding_bottom = border_padding.get("padding_bottom", 0)
 
         x = padding_left + 20
         y = self.context.frame_height - padding_bottom - self.tracker_size - 20
@@ -366,60 +366,53 @@ class MiniMapPlugin(HUDPlugin):
         if self.show_terrain and self.terrain is not None:
             try:
                 terrain_img = self.terrain.get_overlay(
-                    self.player_pos.get('latitude', 0),
-                    self.player_pos.get('longitude', 0),
-                    self.player_pos.get('heading', 0),
-                    self.tracker_size, self.tracker_size,
-                    radius_meters=self.zoom_level
+                    self.player_pos.get("latitude", 0),
+                    self.player_pos.get("longitude", 0),
+                    self.player_pos.get("heading", 0),
+                    self.tracker_size,
+                    self.tracker_size,
+                    radius_meters=self.zoom_level,
                 )
             except Exception as e:
                 print(f"Warning: Failed to get terrain overlay: {e}")
 
         mask = np.zeros((self.tracker_size, self.tracker_size), dtype=np.uint8)
-        cv2.circle(mask, (self.tracker_size // 2, self.tracker_size // 2),
-                  self.radius, 255, -1)
+        cv2.circle(mask, (self.tracker_size // 2, self.tracker_size // 2), self.radius, 255, -1)
 
         if terrain_img is not None and terrain_img.shape[:2] == (self.tracker_size, self.tracker_size):
             terrain_masked = cv2.bitwise_and(terrain_img, terrain_img, mask=mask)
 
-            terrain_masked = cv2.addWeighted(terrain_masked, 0.4,
-                                            np.zeros_like(terrain_masked), 0, 0)
+            terrain_masked = cv2.addWeighted(terrain_masked, 0.4, np.zeros_like(terrain_masked), 0, 0)
 
             roi_y1, roi_y2 = y, y + self.tracker_size
             roi_x1, roi_x2 = x, x + self.tracker_size
 
-            if (roi_y2 <= frame.shape[0] and roi_x2 <= frame.shape[1] and
-                roi_y1 >= 0 and roi_x1 >= 0):
+            if roi_y2 <= frame.shape[0] and roi_x2 <= frame.shape[1] and roi_y1 >= 0 and roi_x1 >= 0:
                 frame_roi = frame[roi_y1:roi_y2, roi_x1:roi_x2].copy()
                 frame_roi[mask > 0] = terrain_masked[mask > 0]
                 frame[roi_y1:roi_y2, roi_x1:roi_x2] = frame_roi
         else:
             overlay = frame.copy()
-            cv2.circle(overlay, (center_x, center_y), self.radius + 5,
-                      self.bg_color, -1, cv2.LINE_AA)
+            cv2.circle(overlay, (center_x, center_y), self.radius + 5, self.bg_color, -1, cv2.LINE_AA)
             cv2.addWeighted(overlay, 0.5, frame, 0.5, 0, frame)
 
-        cv2.circle(frame, (center_x, center_y), self.radius + 5,
-                  self.primary_color, 2, cv2.LINE_AA)
+        cv2.circle(frame, (center_x, center_y), self.radius + 5, self.primary_color, 2, cv2.LINE_AA)
 
         for i in range(1, 4):
             ring_radius = int((self.radius / 3) * i)
-            cv2.circle(frame, (center_x, center_y), ring_radius,
-                      self.ring_color, 1, cv2.LINE_AA)
+            cv2.circle(frame, (center_x, center_y), ring_radius, self.ring_color, 1, cv2.LINE_AA)
 
         for unit in self.friendly_units:
-            lat = unit.get('latitude')
-            lon = unit.get('longitude')
+            lat = unit.get("latitude")
+            lon = unit.get("longitude")
             if lat is None or lon is None:
                 continue
 
             x_meters, y_meters = self._lat_lon_to_meters(
-                self.player_pos.get('latitude', 0),
-                self.player_pos.get('longitude', 0),
-                lat, lon
+                self.player_pos.get("latitude", 0), self.player_pos.get("longitude", 0), lat, lon
             )
 
-            heading_rad = math.radians(self.player_pos.get('heading', 0))
+            heading_rad = math.radians(self.player_pos.get("heading", 0))
             cos_h = math.cos(heading_rad)
             sin_h = math.sin(heading_rad)
             rotated_x = x_meters * cos_h - y_meters * sin_h
@@ -431,22 +424,31 @@ class MiniMapPlugin(HUDPlugin):
 
             dist_from_center = math.sqrt(px**2 + py**2)
             if dist_from_center <= self.radius:
-                cv2.circle(frame, (marker_x, marker_y), 4,
-                         self.friendly_color, -1, cv2.LINE_AA)
-                cv2.circle(frame, (marker_x, marker_y), 5,
-                         self.friendly_color, 1, cv2.LINE_AA)
+                cv2.circle(frame, (marker_x, marker_y), 4, self.friendly_color, -1, cv2.LINE_AA)
+                cv2.circle(frame, (marker_x, marker_y), 5, self.friendly_color, 1, cv2.LINE_AA)
 
         player_size = 6
-        pts = np.array([
-            [center_x, center_y - player_size],
-            [center_x - player_size//2, center_y + player_size//2],
-            [center_x + player_size//2, center_y + player_size//2]
-        ], np.int32)
+        pts = np.array(
+            [
+                [center_x, center_y - player_size],
+                [center_x - player_size // 2, center_y + player_size // 2],
+                [center_x + player_size // 2, center_y + player_size // 2],
+            ],
+            np.int32,
+        )
         cv2.fillPoly(frame, [pts], self.primary_color, cv2.LINE_AA)
 
         range_text = f"{int(self.zoom_level)}m"
-        cv2.putText(frame, range_text, (x + 5, y + self.tracker_size - 5),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.35, self.primary_color, 1, cv2.LINE_AA)
+        cv2.putText(
+            frame,
+            range_text,
+            (x + 5, y + self.tracker_size - 5),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.35,
+            self.primary_color,
+            1,
+            cv2.LINE_AA,
+        )
 
         return frame
 
@@ -458,19 +460,19 @@ class MiniMapPlugin(HUDPlugin):
 
     def handle_key(self, key: int) -> bool:
         """Handle keyboard input."""
-        if key == ord('m'):
+        if key == ord("m"):
             self.toggle_visibility()
             print(f"Mini-Map: {'ON' if self.visible else 'OFF'}")
             return True
-        elif key == ord('t'):
+        elif key == ord("t"):
             self.show_terrain = not self.show_terrain
             print(f"Terrain overlay: {'ON' if self.show_terrain else 'OFF'}")
             return True
-        elif key == ord('+') or key == ord('='):
+        elif key == ord("+") or key == ord("="):
             self.zoom_level = max(50, self.zoom_level - 50)
             print(f"Map zoom: ±{self.zoom_level}m")
             return True
-        elif key == ord('-') or key == ord('_'):
+        elif key == ord("-") or key == ord("_"):
             self.zoom_level = min(2000, self.zoom_level + 50)
             print(f"Map zoom: ±{self.zoom_level}m")
             return True

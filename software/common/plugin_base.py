@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
-import cv2
-import numpy as np
-from typing import Dict, Any, Optional, Tuple, List
 from abc import ABC, abstractmethod
+from collections import deque
 from dataclasses import dataclass, field
 from enum import Enum
-from collections import deque
+from typing import Any, Dict, List, Optional, Tuple
+
+import cv2
+import numpy as np
 
 
 class PluginPosition(Enum):
@@ -55,15 +56,12 @@ class HUDContext:
         self.events = deque(maxlen=self.MAX_EVENTS)
 
     def emit_event(self, event_type: str, data: Any = None):
-        self.events.append({
-            'type': event_type,
-            'data': data
-        })
+        self.events.append({"type": event_type, "data": data})
 
     def get_events(self, event_type: Optional[str] = None) -> List[Dict[str, Any]]:
         if event_type is None:
             return list(self.events)
-        return [e for e in self.events if e['type'] == event_type]
+        return [e for e in self.events if e["type"] == event_type]
 
     def clear_events(self):
         self.events.clear()
@@ -79,10 +77,8 @@ class HUDPlugin(ABC):
         self.visible = True
         self.initialized = False
 
-        if not hasattr(self.__class__, 'METADATA') or self.__class__.METADATA is None:
-            raise NotImplementedError(
-                f"{self.__class__.__name__} must define METADATA as a class-level attribute"
-            )
+        if not hasattr(self.__class__, "METADATA") or self.__class__.METADATA is None:
+            raise NotImplementedError(f"{self.__class__.__name__} must define METADATA as a class-level attribute")
 
         self.metadata = self.__class__.METADATA
 
@@ -149,8 +145,10 @@ class HUDPlugin(ABC):
     def require_data(self, key: str, error_msg: Optional[str] = None) -> Any:
         if key not in self.context.state:
             if error_msg is None:
-                error_msg = (f"Plugin '{self.metadata.name}' requires '{key}' in context. "
-                           f"Make sure the providing plugin is loaded first and has lower z_index.")
+                error_msg = (
+                    f"Plugin '{self.metadata.name}' requires '{key}' in context. "
+                    f"Make sure the providing plugin is loaded first and has lower z_index."
+                )
             raise RuntimeError(error_msg)
         return self.context.state[key]
 

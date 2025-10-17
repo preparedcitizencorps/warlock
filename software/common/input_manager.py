@@ -2,8 +2,8 @@
 """Centralized input management for keyboard, hardware buttons, and other input devices."""
 
 from dataclasses import dataclass
-from typing import Dict, Callable, Optional, List, Any, Union
 from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Union
 
 
 class InputType(Enum):
@@ -54,15 +54,16 @@ class InputManager:
         ]
 
         for name, priority in category_definitions:
-            self.categories[name] = InputCategory(
-                name=name,
-                priority=priority,
-                bindings=[]
-            )
+            self.categories[name] = InputCategory(name=name, priority=priority, bindings=[])
 
-    def register_keybind(self, key: str, description: str, category: str,
-                        handler: Optional[Callable[..., Any]] = None,
-                        enabled: bool = True) -> None:
+    def register_keybind(
+        self,
+        key: str,
+        description: str,
+        category: str,
+        handler: Optional[Callable[..., Any]] = None,
+        enabled: bool = True,
+    ) -> None:
         """
         Register a keyboard binding.
 
@@ -88,23 +89,24 @@ class InputManager:
             category=category,
             handler=handler,
             input_type=InputType.KEYBOARD,
-            enabled=enabled
+            enabled=enabled,
         )
 
         self.bindings[key] = binding
 
         if category not in self.categories:
-            self.categories[category] = InputCategory(
-                name=category,
-                priority=100,
-                bindings=[]
-            )
+            self.categories[category] = InputCategory(name=category, priority=100, bindings=[])
 
         self.categories[category].bindings.append(binding)
 
-    def register_hardware_input(self, identifier: str, description: str,
-                                category: str, input_type: InputType,
-                                handler: Optional[Callable] = None) -> None:
+    def register_hardware_input(
+        self,
+        identifier: str,
+        description: str,
+        category: str,
+        input_type: InputType,
+        handler: Optional[Callable] = None,
+    ) -> None:
         """
         Register a hardware input (GPIO pin, serial command, etc.).
 
@@ -130,17 +132,13 @@ class InputManager:
             category=category,
             handler=handler,
             input_type=input_type,
-            enabled=True
+            enabled=True,
         )
 
         self.bindings[identifier] = binding
 
         if category not in self.categories:
-            self.categories[category] = InputCategory(
-                name=category,
-                priority=100,
-                bindings=[]
-            )
+            self.categories[category] = InputCategory(name=category, priority=100, bindings=[])
 
         self.categories[category].bindings.append(binding)
 
@@ -174,17 +172,11 @@ class InputManager:
         Returns:
             List of (category_name, bindings) tuples sorted by priority
         """
-        sorted_categories = sorted(
-            self.categories.values(),
-            key=lambda c: c.priority
-        )
+        sorted_categories = sorted(self.categories.values(), key=lambda c: c.priority)
 
         result = []
         for category in sorted_categories:
-            keyboard_bindings = [
-                b for b in category.bindings
-                if b.input_type == InputType.KEYBOARD and b.enabled
-            ]
+            keyboard_bindings = [b for b in category.bindings if b.input_type == InputType.KEYBOARD and b.enabled]
             if keyboard_bindings:
                 result.append((category.name, keyboard_bindings))
 
@@ -192,10 +184,7 @@ class InputManager:
 
     def get_hardware_inputs(self) -> List[InputBinding]:
         """Get all registered hardware input bindings."""
-        return [
-            b for b in self.bindings.values()
-            if b.input_type != InputType.KEYBOARD and b.enabled
-        ]
+        return [b for b in self.bindings.values() if b.input_type != InputType.KEYBOARD and b.enabled]
 
     def enable_binding(self, key: str) -> bool:
         """Enable a binding by key."""
@@ -235,11 +224,11 @@ class InputManager:
             }
         }
         """
-        keybinds_config = config.get('keybinds', {})
+        keybinds_config = config.get("keybinds", {})
 
         for action, key_value in keybinds_config.items():
             if isinstance(key_value, dict):
-                key = key_value.get('key')
-                enabled = key_value.get('enabled', True)
+                key = key_value.get("key")
+                enabled = key_value.get("enabled", True)
                 if key and key in self.bindings:
                     self.bindings[key].enabled = enabled

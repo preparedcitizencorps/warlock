@@ -2,11 +2,12 @@
 
 import sys
 from pathlib import Path
+
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from common.plugin_base import HUDPlugin, HUDContext, PluginConfig, PluginMetadata
+from common.plugin_base import HUDContext, HUDPlugin, PluginConfig, PluginMetadata
 
 
 class TestConsumerPlugin(HUDPlugin):
@@ -18,14 +19,15 @@ class TestConsumerPlugin(HUDPlugin):
             version="1.0.0",
             author="Test",
             description="Plugin that requires border padding",
-            dependencies=['BorderPaddingPlugin'],
-            provides=[]
+            dependencies=["BorderPaddingPlugin"],
+            provides=[],
         )
 
     def initialize(self) -> bool:
         try:
-            border_padding = self.require_data('border_padding',
-                "BorderPaddingPlugin must be loaded before TestConsumerPlugin")
+            border_padding = self.require_data(
+                "border_padding", "BorderPaddingPlugin must be loaded before TestConsumerPlugin"
+            )
             print(f"   ✓ TestConsumerPlugin found border_padding: {border_padding.get('padding_top')}px")
             return True
         except RuntimeError as e:
@@ -57,16 +59,16 @@ if __name__ == "__main__":
 
     pm.discover_plugins()
 
-    pm.plugin_classes['TestConsumerPlugin'] = TestConsumerPlugin
+    pm.plugin_classes["TestConsumerPlugin"] = TestConsumerPlugin
 
     print("\n1. Config order (wrong): TestConsumerPlugin → BorderPaddingPlugin")
-    wrong_order = ['TestConsumerPlugin', 'BorderPaddingPlugin']
+    wrong_order = ["TestConsumerPlugin", "BorderPaddingPlugin"]
 
     try:
         correct_order = pm.topological_sort_plugins(wrong_order)
         print(f"   Corrected order:         {' → '.join(correct_order)}")
 
-        if correct_order.index('BorderPaddingPlugin') < correct_order.index('TestConsumerPlugin'):
+        if correct_order.index("BorderPaddingPlugin") < correct_order.index("TestConsumerPlugin"):
             print("   ✓ Dependencies loaded first!")
         else:
             print("   ✗ ERROR: Dependency order wrong!")
@@ -76,10 +78,7 @@ if __name__ == "__main__":
 
     print("\n2. Loading plugins in dependency order...")
 
-    configs = [
-        ('TestConsumerPlugin', PluginConfig()),
-        ('BorderPaddingPlugin', PluginConfig())
-    ]
+    configs = [("TestConsumerPlugin", PluginConfig()), ("BorderPaddingPlugin", PluginConfig())]
 
     try:
         loaded = pm.load_plugins_with_dependencies(configs)

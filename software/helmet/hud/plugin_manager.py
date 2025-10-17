@@ -6,10 +6,10 @@ import inspect
 import sys
 import time
 from pathlib import Path
-from typing import List, Dict, Type, Optional, Any
-import numpy as np
+from typing import Any, Dict, List, Optional, Type
 
-from common.plugin_base import HUDPlugin, HUDContext, PluginConfig, PluginMetadata
+import numpy as np
+from common.plugin_base import HUDContext, HUDPlugin, PluginConfig, PluginMetadata
 
 
 class PluginManager:
@@ -24,10 +24,8 @@ class PluginManager:
 
     def _get_metadata(self, plugin_class: Type[HUDPlugin]) -> PluginMetadata:
         """Get metadata from plugin class without instantiation."""
-        if not hasattr(plugin_class, 'METADATA') or plugin_class.METADATA is None:
-            raise AttributeError(
-                f"{plugin_class.__name__} must define METADATA as a class-level attribute"
-            )
+        if not hasattr(plugin_class, "METADATA") or plugin_class.METADATA is None:
+            raise AttributeError(f"{plugin_class.__name__} must define METADATA as a class-level attribute")
         return plugin_class.METADATA
 
     def discover_plugins(self) -> Dict[str, Type[HUDPlugin]]:
@@ -53,9 +51,7 @@ class PluginManager:
                 self.plugin_file_times[plugin_file.stem] = plugin_file.stat().st_mtime
 
                 for name, obj in inspect.getmembers(module, inspect.isclass):
-                    if (issubclass(obj, HUDPlugin) and
-                        obj is not HUDPlugin and
-                        obj.__module__ == module_name):
+                    if issubclass(obj, HUDPlugin) and obj is not HUDPlugin and obj.__module__ == module_name:
                         discovered[name] = obj
                         print(f"Discovered plugin: {name} from {plugin_file.name}")
 
@@ -94,7 +90,7 @@ class PluginManager:
             metadata = self._get_metadata(self.plugin_classes[plugin_name])
             declared_deps = metadata.dependencies or []
 
-            data_keys_consumed = getattr(metadata, 'consumes', [])
+            data_keys_consumed = getattr(metadata, "consumes", [])
 
             inferred_deps = []
             for other_name, other_class in self.plugin_classes.items():
@@ -141,15 +137,17 @@ class PluginManager:
 
         return sorted_plugins
 
-    def load_plugin(self, plugin_class: Type[HUDPlugin],
-                   config: Optional[PluginConfig] = None,
-                   check_deps: bool = True) -> Optional[HUDPlugin]:
+    def load_plugin(
+        self, plugin_class: Type[HUDPlugin], config: Optional[PluginConfig] = None, check_deps: bool = True
+    ) -> Optional[HUDPlugin]:
         try:
             if check_deps:
                 satisfied, missing = self.check_dependencies(plugin_class)
                 if not satisfied:
                     print(f"⚠ Warning: Plugin {plugin_class.__name__} has missing dependencies: {', '.join(missing)}")
-                    print(f"  → These plugins must be loaded first. Use topological_sort_plugins() to determine correct load order.")
+                    print(
+                        f"  → These plugins must be loaded first. Use topological_sort_plugins() to determine correct load order."
+                    )
 
             if config is None:
                 config = PluginConfig()
@@ -161,8 +159,10 @@ class PluginManager:
                 self.plugins.append(plugin)
 
                 if plugin.metadata.provides:
-                    provides_str = ', '.join(plugin.metadata.provides)
-                    print(f"Loaded plugin: {plugin.metadata.name} v{plugin.metadata.version} [provides: {provides_str}]")
+                    provides_str = ", ".join(plugin.metadata.provides)
+                    print(
+                        f"Loaded plugin: {plugin.metadata.name} v{plugin.metadata.version} [provides: {provides_str}]"
+                    )
                 else:
                     print(f"Loaded plugin: {plugin.metadata.name} v{plugin.metadata.version}")
                 return plugin
@@ -173,11 +173,11 @@ class PluginManager:
         except Exception as e:
             print(f"Error loading plugin {plugin_class.__name__}: {e}")
             import traceback
+
             traceback.print_exc()
             return None
 
-    def load_plugin_by_name(self, name: str,
-                           config: Optional[PluginConfig] = None) -> Optional[HUDPlugin]:
+    def load_plugin_by_name(self, name: str, config: Optional[PluginConfig] = None) -> Optional[HUDPlugin]:
         if name not in self.plugin_classes:
             print(f"Plugin not found: {name}")
             return None
@@ -216,8 +216,7 @@ class PluginManager:
 
     def render(self, frame: np.ndarray) -> np.ndarray:
         sorted_plugins = sorted(
-            [p for p in self.plugins if p.visible and p.metadata.enabled],
-            key=lambda p: p.config.z_index
+            [p for p in self.plugins if p.visible and p.metadata.enabled], key=lambda p: p.config.z_index
         )
 
         for plugin in sorted_plugins:
@@ -245,21 +244,23 @@ class PluginManager:
 
     def get_plugin(self, name: str) -> Optional[HUDPlugin]:
         for plugin in self.plugins:
-            if (plugin.__class__.__name__ == name or
-                plugin.metadata.name == name):
+            if plugin.__class__.__name__ == name or plugin.metadata.name == name:
                 return plugin
         return None
 
     def list_plugins(self) -> List[Dict[str, Any]]:
-        return [{
-            'name': p.metadata.name,
-            'version': p.metadata.version,
-            'author': p.metadata.author,
-            'description': p.metadata.description,
-            'enabled': p.metadata.enabled,
-            'visible': p.visible,
-            'z_index': p.config.z_index
-        } for p in self.plugins]
+        return [
+            {
+                "name": p.metadata.name,
+                "version": p.metadata.version,
+                "author": p.metadata.author,
+                "description": p.metadata.description,
+                "enabled": p.metadata.enabled,
+                "visible": p.visible,
+                "z_index": p.config.z_index,
+            }
+            for p in self.plugins
+        ]
 
     def reload_plugin(self, plugin_name: str) -> bool:
         plugin = self.get_plugin(plugin_name)
@@ -294,9 +295,7 @@ class PluginManager:
                     self.plugin_file_times[module_file] = plugin_path.stat().st_mtime
 
             for name, obj in inspect.getmembers(module, inspect.isclass):
-                if (issubclass(obj, HUDPlugin) and
-                    obj is not HUDPlugin and
-                    name == plugin_name):
+                if issubclass(obj, HUDPlugin) and obj is not HUDPlugin and name == plugin_name:
                     self.plugin_classes[name] = obj
 
                     new_plugin = self.load_plugin(obj, saved_config)
@@ -311,6 +310,7 @@ class PluginManager:
         except Exception as e:
             print(f"Error reloading plugin {plugin_name}: {e}")
             import traceback
+
             traceback.print_exc()
             return False
 
@@ -325,9 +325,11 @@ class PluginManager:
                     module = self.plugin_modules.get(file_name)
                     if module:
                         for name, obj in inspect.getmembers(module, inspect.isclass):
-                            if (issubclass(obj, HUDPlugin) and
-                                obj is not HUDPlugin and
-                                obj.__module__ == f"helmet.hud.plugins.{file_name}"):
+                            if (
+                                issubclass(obj, HUDPlugin)
+                                and obj is not HUDPlugin
+                                and obj.__module__ == f"helmet.hud.plugins.{file_name}"
+                            ):
                                 modified.append(name)
 
         return modified
@@ -342,8 +344,7 @@ class PluginManager:
 
         return reloaded
 
-    def load_plugin_from_file(self, file_path: str,
-                             config: Optional[PluginConfig] = None) -> Optional[HUDPlugin]:
+    def load_plugin_from_file(self, file_path: str, config: Optional[PluginConfig] = None) -> Optional[HUDPlugin]:
         try:
             plugin_path = Path(file_path)
             if not plugin_path.exists():
@@ -361,9 +362,7 @@ class PluginManager:
                 self.plugin_file_times[plugin_path.stem] = plugin_path.stat().st_mtime
 
                 for name, obj in inspect.getmembers(module, inspect.isclass):
-                    if (issubclass(obj, HUDPlugin) and
-                        obj is not HUDPlugin and
-                        obj.__module__ == module_name):
+                    if issubclass(obj, HUDPlugin) and obj is not HUDPlugin and obj.__module__ == module_name:
                         self.plugin_classes[name] = obj
 
                         plugin = self.load_plugin(obj, config)
@@ -377,6 +376,7 @@ class PluginManager:
         except Exception as e:
             print(f"Error loading plugin from file {file_path}: {e}")
             import traceback
+
             traceback.print_exc()
             return None
 

@@ -12,20 +12,17 @@ This unit handles:
 """
 
 import logging
-import time
-import threading
 import sys
+import threading
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from body.core.network_server import BMUNetworkServer
 from body.core.gps_simulator import GPSSimulator
+from body.core.network_server import BMUNetworkServer
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -101,8 +98,8 @@ def main():
     """Main entry point."""
     import argparse
 
-    parser = argparse.ArgumentParser(description='WARLOCK Body-Mounted Unit')
-    parser.add_argument('--id', type=str, default='WARLOCK-001-BMU', help='BMU source ID')
+    parser = argparse.ArgumentParser(description="WARLOCK Body-Mounted Unit")
+    parser.add_argument("--id", type=str, default="WARLOCK-001-BMU", help="BMU source ID")
     args = parser.parse_args()
 
     app = BMUApplication(source_id=args.id)

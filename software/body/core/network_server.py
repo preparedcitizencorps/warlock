@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """Network server for Body-Mounted Unit (BMU) to serve HMU clients."""
 
+import json
+import logging
 import socket
 import threading
-import logging
-import json
 import time
-from typing import List, Dict, Any
+from typing import Any, Dict, List
+
 from common.network_base import NetworkConnection
-from common.protocol import MessageType, ConnectionStatus
+from common.protocol import ConnectionStatus, MessageType
 
 logger = logging.getLogger(__name__)
 
@@ -43,13 +44,13 @@ class BMUNetworkServer(NetworkConnection):
             # Create TCP server socket
             self.tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.tcp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.tcp_socket.bind(('0.0.0.0', self.tcp_port))
+            self.tcp_socket.bind(("0.0.0.0", self.tcp_port))
             self.tcp_socket.listen(5)
             logger.info(f"TCP server listening on port {self.tcp_port}")
 
             # Create UDP socket
             self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self.udp_socket.bind(('0.0.0.0', self.udp_port))
+            self.udp_socket.bind(("0.0.0.0", self.udp_port))
             self.udp_socket.settimeout(self.SOCKET_TIMEOUT)
             logger.info(f"UDP server listening on port {self.udp_port}")
 
@@ -85,21 +86,13 @@ class BMUNetworkServer(NetworkConnection):
                 client_socket.settimeout(self.SOCKET_TIMEOUT)
                 logger.info(f"New connection from {addr}")
 
-                client_info = {
-                    'socket': client_socket,
-                    'addr': addr,
-                    'last_seen': 0
-                }
+                client_info = {"socket": client_socket, "addr": addr, "last_seen": 0}
 
                 with self.clients_lock:
                     self.clients.append(client_info)
 
                 # Start thread to handle this client
-                client_thread = threading.Thread(
-                    target=self._handle_client,
-                    args=(client_info,),
-                    daemon=True
-                )
+                client_thread = threading.Thread(target=self._handle_client, args=(client_info,), daemon=True)
                 client_thread.start()
 
             except Exception as e:
@@ -108,7 +101,7 @@ class BMUNetworkServer(NetworkConnection):
 
     def _handle_client(self, client_info: Dict):
         """Handle messages from a connected client."""
-        client_socket = client_info['socket']
+        client_socket = client_info["socket"]
 
         while self.running:
             try:
@@ -117,17 +110,17 @@ class BMUNetworkServer(NetworkConnection):
                 if not length_bytes:
                     break
 
-                length = int.from_bytes(length_bytes, 'big')
+                length = int.from_bytes(length_bytes, "big")
 
                 # Receive message
                 data = self._recv_exactly_from(client_socket, length)
                 if not data:
                     break
 
-                message = json.loads(data.decode('utf-8'))
+                message = json.loads(data.decode("utf-8"))
 
                 # Update last seen
-                client_info['last_seen'] = message.get('timestamp', 0)
+                client_info["last_seen"] = message.get("timestamp", 0)
 
                 # Process message (TODO: implement handlers)
                 logger.debug(f"Received from {client_info['addr']}: {message['type']}")
@@ -149,7 +142,7 @@ class BMUNetworkServer(NetworkConnection):
 
     def _recv_exactly_from(self, sock: socket.socket, n: int) -> bytes:
         """Receive exactly n bytes from socket."""
-        data = b''
+        data = b""
         while len(data) < n:
             try:
                 chunk = sock.recv(n - len(data))
@@ -166,7 +159,7 @@ class BMUNetworkServer(NetworkConnection):
         while self.running:
             try:
                 data, addr = self.udp_socket.recvfrom(self.BUFFER_SIZE)
-                message = json.loads(data.decode('utf-8'))
+                message = json.loads(data.decode("utf-8"))
                 logger.debug(f"Received UDP from {addr}: {message['type']}")
                 # TODO: Process UDP messages
             except socket.timeout:
@@ -197,36 +190,31 @@ class BMUNetworkServer(NetworkConnection):
             payload: Message payload
             reliable: Use TCP if True, UDP if False
         """
-        message = {
-            "type": msg_type.value,
-            "source_id": self.source_id,
-            "timestamp": time.time(),
-            "payload": payload
-        }
+        message = {"type": msg_type.value, "source_id": self.source_id, "timestamp": time.time(), "payload": payload}
 
         if reliable:
             # Send via TCP to all clients
             with self.clients_lock:
                 for client_info in self.clients:
                     try:
-                        self._send_tcp_to(client_info['socket'], message)
+                        self._send_tcp_to(client_info["socket"], message)
                     except Exception as e:
                         logger.error(f"Failed to send to {client_info['addr']}: {e}")
         else:
             # Send via UDP to all clients
-            data = json.dumps(message).encode('utf-8')
+            data = json.dumps(message).encode("utf-8")
             with self.clients_lock:
                 for client_info in self.clients:
                     try:
-                        self.udp_socket.sendto(data, client_info['addr'])
+                        self.udp_socket.sendto(data, client_info["addr"])
                     except Exception as e:
                         logger.error(f"Failed to send UDP to {client_info['addr']}: {e}")
 
     def _send_tcp_to(self, sock: socket.socket, message: Dict):
         """Send message via TCP to specific socket."""
-        data = json.dumps(message).encode('utf-8')
+        data = json.dumps(message).encode("utf-8")
         length = len(data)
-        sock.sendall(length.to_bytes(4, 'big') + data)
+        sock.sendall(length.to_bytes(4, "big") + data)
 
     def has_clients(self) -> bool:
         """Check if any clients are connected.

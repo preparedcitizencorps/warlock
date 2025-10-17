@@ -3,8 +3,9 @@
 Tests verify core GPS functionality without being fragile to implementation changes.
 """
 
-import pytest
 import math
+
+import pytest
 from body.core.gps_simulator import GPSSimulator
 
 
@@ -16,7 +17,7 @@ class TestGPSPositionUpdates:
         gps = GPSSimulator()
         position = gps.get_position()
 
-        required_fields = ['latitude', 'longitude', 'altitude', 'heading', 'timestamp']
+        required_fields = ["latitude", "longitude", "altitude", "heading", "timestamp"]
         for field in required_fields:
             assert field in position, f"Position must include {field}"
 
@@ -25,28 +26,28 @@ class TestGPSPositionUpdates:
         gps = GPSSimulator()
         position = gps.get_position()
 
-        assert -90 <= position['latitude'] <= 90
+        assert -90 <= position["latitude"] <= 90
 
     def test_longitude_in_valid_range(self):
         """Longitude must be between -180 and 180 degrees."""
         gps = GPSSimulator()
         position = gps.get_position()
 
-        assert -180 <= position['longitude'] <= 180
+        assert -180 <= position["longitude"] <= 180
 
     def test_heading_in_valid_range(self):
         """Heading must be between 0 and 360 degrees."""
         gps = GPSSimulator()
         position = gps.get_position()
 
-        assert 0 <= position['heading'] <= 360
+        assert 0 <= position["heading"] <= 360
 
     def test_timestamp_is_numeric(self):
         """Timestamp must be numeric for time calculations."""
         gps = GPSSimulator()
         position = gps.get_position()
 
-        assert isinstance(position['timestamp'], (int, float))
+        assert isinstance(position["timestamp"], (int, float))
 
 
 class TestGPSMovement:
@@ -60,8 +61,7 @@ class TestGPSMovement:
         gps.update(forward=1.0, turn=0)
 
         updated = gps.get_position()
-        assert (updated['latitude'] != initial['latitude'] or
-                updated['longitude'] != initial['longitude'])
+        assert updated["latitude"] != initial["latitude"] or updated["longitude"] != initial["longitude"]
 
     def test_turn_changes_heading(self):
         """Turning should change heading."""
@@ -80,8 +80,8 @@ class TestGPSMovement:
         gps.update(forward=0, turn=0)
 
         pos2 = gps.get_position()
-        assert pos1['latitude'] == pos2['latitude']
-        assert pos1['longitude'] == pos2['longitude']
+        assert pos1["latitude"] == pos2["latitude"]
+        assert pos1["longitude"] == pos2["longitude"]
 
 
 class TestGPSEdgeCases:
@@ -94,7 +94,7 @@ class TestGPSEdgeCases:
         for _ in range(10):
             gps.update(forward=1.0, turn=0)
             position = gps.get_position()
-            assert -90 <= position['latitude'] <= 90
+            assert -90 <= position["latitude"] <= 90
 
     def test_near_south_pole_does_not_crash(self):
         """GPS should handle positions near south pole."""
@@ -103,7 +103,7 @@ class TestGPSEdgeCases:
         for _ in range(10):
             gps.update(forward=1.0, turn=0)
             position = gps.get_position()
-            assert -90 <= position['latitude'] <= 90
+            assert -90 <= position["latitude"] <= 90
 
     def test_date_line_crossing_does_not_crash(self):
         """GPS should handle crossing the international date line."""
@@ -112,7 +112,7 @@ class TestGPSEdgeCases:
         for _ in range(10):
             gps.update(forward=0, turn=1.0)
             position = gps.get_position()
-            assert -180 <= position['longitude'] <= 180
+            assert -180 <= position["longitude"] <= 180
 
     def test_multiple_full_rotations(self):
         """Heading should handle multiple 360° rotations."""
@@ -122,4 +122,4 @@ class TestGPSEdgeCases:
             gps.update(forward=0, turn=10.0)
 
         position = gps.get_position()
-        assert 0 <= position['heading'] <= 360
+        assert 0 <= position["heading"] <= 360

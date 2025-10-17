@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """Base networking classes for HMU-BMU communication."""
 
-import socket
 import json
-import threading
 import logging
+import socket
+import threading
 import time
-from typing import Callable, Optional, Dict, Any
-from queue import Queue, Empty
-from common.protocol import MessageType, Transport, ConnectionStatus, validate_message
+from queue import Empty, Queue
+from typing import Any, Callable, Dict, Optional
+
+from common.protocol import ConnectionStatus, MessageType, Transport, validate_message
 
 logger = logging.getLogger(__name__)
 
@@ -67,12 +68,7 @@ class NetworkConnection:
             payload: Message payload dictionary
             reliable: Use TCP if True, UDP if False
         """
-        message = {
-            "type": msg_type.value,
-            "source_id": self.source_id,
-            "timestamp": time.time(),
-            "payload": payload
-        }
+        message = {"type": msg_type.value, "source_id": self.source_id, "timestamp": time.time(), "payload": payload}
 
         if reliable:
             self.send_queue_tcp.put(message)
@@ -86,10 +82,10 @@ class NetworkConnection:
             return
 
         try:
-            data = json.dumps(message).encode('utf-8')
+            data = json.dumps(message).encode("utf-8")
             length = len(data)
             # Send length prefix (4 bytes) + data
-            self.tcp_socket.sendall(length.to_bytes(4, 'big') + data)
+            self.tcp_socket.sendall(length.to_bytes(4, "big") + data)
         except Exception as e:
             logger.error(f"TCP send error: {e}")
             self.status = ConnectionStatus.ERROR
@@ -101,7 +97,7 @@ class NetworkConnection:
             return
 
         try:
-            data = json.dumps(message).encode('utf-8')
+            data = json.dumps(message).encode("utf-8")
             self.udp_socket.sendto(data, addr)
         except Exception as e:
             logger.error(f"UDP send error: {e}")
@@ -117,14 +113,14 @@ class NetworkConnection:
             if not length_bytes:
                 return None
 
-            length = int.from_bytes(length_bytes, 'big')
+            length = int.from_bytes(length_bytes, "big")
 
             # Receive message data
             data = self._recv_exactly(length)
             if not data:
                 return None
 
-            message = json.loads(data.decode('utf-8'))
+            message = json.loads(data.decode("utf-8"))
 
             if validate_message(message):
                 return message
@@ -142,7 +138,7 @@ class NetworkConnection:
 
     def _recv_exactly(self, n: int) -> Optional[bytes]:
         """Receive exactly n bytes from TCP socket."""
-        data = b''
+        data = b""
         while len(data) < n:
             try:
                 chunk = self.tcp_socket.recv(n - len(data))
@@ -163,7 +159,7 @@ class NetworkConnection:
 
         try:
             data, addr = self.udp_socket.recvfrom(self.BUFFER_SIZE)
-            message = json.loads(data.decode('utf-8'))
+            message = json.loads(data.decode("utf-8"))
 
             if validate_message(message):
                 return message, addr
