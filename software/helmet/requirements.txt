@@ -1,0 +1,23 @@
+# WARLOCK Helmet-Mounted Unit (HMU) Dependencies
+
+# Camera and computer vision
+opencv-python>=4.8.0
+numpy>=1.24.0
+
+# Machine learning / AI
+ultralytics>=8.0.0  # YOLO11n
+
+# Configuration
+pyyaml>=6.0
+
+# HTTP for map tile downloads
+requests>=2.31.0
+
+# Optional: Hailo AI accelerator support (when hardware available)
+# hailo-platform  # Install from Hailo SDK
+
+# Optional: IMU sensor (BNO085)
+# adafruit-circuitpython-bno08x
+
+# Optional: GPS module
+# gpsd-py3  # For U-blox NEO-M9N backup GPS

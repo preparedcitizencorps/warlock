@@ -1,3 +1,11 @@
+# WARLOCK Helmet-Mounted Unit Configuration
+
+network:
+  source_id: "WARLOCK-001-HMU"
+  bmu_host: "192.168.200.2"  # BMU IP address (cable or WiFi)
+  tcp_port: 5000
+  udp_port: 5001
+
 keybinds:
   system:
     quit: q

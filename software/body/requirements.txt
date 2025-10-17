@@ -1,0 +1,35 @@
+# WARLOCK Body-Mounted Unit (BMU) Dependencies
+
+# Core Python libraries
+numpy>=1.24.0
+pyyaml>=6.0
+
+# GPS
+gpsd-py3>=0.3.0  # For U-blox ZED-F9P primary GPS
+
+# SIGINT - RF Scanning
+pyrtlsdr>=0.2.9  # RTL-SDR v4 support
+
+# SIGINT - WiFi CSI (when Intel AX210 configured)
+# scapy>=2.5.0  # Packet manipulation
+# TODO: CSI extraction tools (custom)
+
+# Radio - SA818 VHF/UHF Module
+pyserial>=3.5  # Serial communication
+
+# Mesh Networking - LoRa
+# pyLoRa  # For SX1262 module
+# TODO: Add when hardware available
+
+# ATAK Integration
+# pytaklib  # TAK protocol library
+# TODO: Verify package name
+
+# IMU sensor (BNO085)
+adafruit-circuitpython-bno08x>=1.0.0
+
+# Optional: ATAK alternative (FreeTAKServer)
+# FreeTAKServer-UI
+
+# HTTP requests (for future features)
+requests>=2.31.0

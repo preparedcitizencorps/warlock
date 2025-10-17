@@ -7,8 +7,9 @@ import inspect
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "software"))
 
-from hud import HUDContext, PluginManager
-from hud.plugin_base import HUDPlugin, PluginConfig
+from common.plugin_base import HUDContext
+from helmet.hud.plugin_manager import PluginManager
+from common.plugin_base import HUDPlugin, PluginConfig
 from tests.fixtures.mock_plugins import ProviderPlugin
 
 

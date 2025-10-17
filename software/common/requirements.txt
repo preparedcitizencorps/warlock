@@ -1,0 +1,13 @@
+# WARLOCK Common Dependencies (both HMU and BMU need these)
+
+# Core Python libraries
+numpy>=1.24.0
+pyyaml>=6.0
+
+# These are included in Python standard library, listed for clarity:
+# - socket (networking)
+# - threading (concurrency)
+# - json (message serialization)
+# - logging (diagnostics)
+# - dataclasses (data models)
+# - enum (protocol definitions)

@@ -5,8 +5,9 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from hud import HUDContext, PluginManager
-from hud.config_loader import load_config, create_plugin_config
+from common.plugin_base import HUDContext
+from helmet.hud.plugin_manager import PluginManager
+from common.config_loader import load_config, create_plugin_config
 
 
 class TestPluginSystemIntegration:
@@ -14,7 +15,7 @@ class TestPluginSystemIntegration:
 
     def setup_method(self):
         self.context = HUDContext(1280, 720)
-        self.manager = PluginManager(self.context, plugin_dir="hud/plugins")
+        self.manager = PluginManager(self.context, plugin_dir="helmet/hud/plugins")
 
     def test_can_discover_all_plugins(self):
         """Plugin discovery should find all plugin files."""
@@ -22,7 +23,7 @@ class TestPluginSystemIntegration:
 
         assert len(discovered) > 0, "Should discover at least one plugin"
         for name, plugin_class in discovered.items():
-            from hud.plugin_base import HUDPlugin
+            from common.plugin_base import HUDPlugin
             assert issubclass(plugin_class, HUDPlugin), \
                 f"{name} must be a subclass of HUDPlugin"
 
@@ -30,9 +31,9 @@ class TestPluginSystemIntegration:
         """All enabled plugins in config should load successfully."""
         self.manager.discover_plugins()
 
-        config_path = Path("hud_config.yaml")
+        config_path = Path("helmet/helmet_config.yaml")
         if not config_path.exists():
-            pytest.skip("hud_config.yaml not found")
+            pytest.skip("helmet/helmet_config.yaml not found")
 
         config = load_config(str(config_path))
 
@@ -146,9 +147,9 @@ class TestConfigLoading:
 
     def test_can_load_valid_config(self):
         """Should load valid YAML config without errors."""
-        config_path = Path("hud_config.yaml")
+        config_path = Path("helmet/helmet_config.yaml")
         if not config_path.exists():
-            pytest.skip("hud_config.yaml not found")
+            pytest.skip("helmet/helmet_config.yaml not found")
 
         config = load_config(str(config_path))
 

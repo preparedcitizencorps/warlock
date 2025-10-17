@@ -6,8 +6,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "software"))
 
-from hud import HUDContext, PluginManager
-from hud.plugin_base import PluginConfig
+from common.plugin_base import HUDContext
+from helmet.hud.plugin_manager import PluginManager
+from common.plugin_base import PluginConfig
 from tests.fixtures.mock_plugins import (
     ProviderPlugin, ConsumerPlugin, HardDependentPlugin,
     IndependentPlugin, CircularA, CircularB
@@ -72,7 +73,7 @@ class TestTopologicalSort:
 
     def test_diamond_dependency(self):
         """Diamond: A→B, A→C, B→D, C→D should resolve correctly."""
-        from hud.plugin_base import PluginMetadata
+        from common.plugin_base import PluginMetadata
 
         class A(ProviderPlugin):
             METADATA = PluginMetadata(
@@ -147,7 +148,7 @@ class TestSoftDependencyInference:
 
     def test_no_dependency_if_no_match(self):
         """Plugin consuming non-existent data has no inferred dependencies."""
-        from hud.plugin_base import PluginMetadata
+        from common.plugin_base import PluginMetadata
 
         class Orphan(ConsumerPlugin):
             METADATA = PluginMetadata(

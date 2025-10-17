@@ -6,12 +6,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from hud import HUDContext, PluginManager
+from common.plugin_base import HUDContext
+from helmet.hud.plugin_manager import PluginManager
 
 
 def test_dependency_order():
     context = HUDContext(1280, 720)
-    plugin_manager = PluginManager(context, plugin_dir=str(Path(__file__).parent.parent / "hud" / "plugins"))
+    plugin_manager = PluginManager(context, plugin_dir=str(Path(__file__).parent.parent / "helmet" / "hud" / "plugins"))
 
     plugin_manager.discover_plugins()
 
@@ -32,10 +33,10 @@ def test_dependency_order():
 
 
 def test_render_order_by_z_index():
-    from hud.plugin_base import PluginConfig
+    from common.plugin_base import PluginConfig
 
     context = HUDContext(1280, 720)
-    plugin_manager = PluginManager(context, plugin_dir=str(Path(__file__).parent.parent / "hud" / "plugins"))
+    plugin_manager = PluginManager(context, plugin_dir=str(Path(__file__).parent.parent / "helmet" / "hud" / "plugins"))
 
     plugin_manager.discover_plugins()
 

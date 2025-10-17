@@ -23,6 +23,7 @@ pytest tests/test_dependency_system.py::TestTopologicalSort::test_circular_depen
 Tests validate **behavior and contracts**, not implementation details.
 
 **What we test:**
+
 - ✅ Dependency resolution logic
 - ✅ Plugin interface contracts
 - ✅ System integration (happy path)
@@ -30,6 +31,7 @@ Tests validate **behavior and contracts**, not implementation details.
 - ✅ Load order vs render order separation
 
 **What we don't test:**
+
 - ❌ Specific pixel positions
 - ❌ Exact colors or visual output
 - ❌ Plugin-specific business logic
@@ -52,6 +54,7 @@ tests/
 ## Test Coverage
 
 **Dependency System (9 tests)**
+
 - Simple chains (A→B)
 - Hard dependencies
 - Soft dependency inference
@@ -60,12 +63,14 @@ tests/
 - Missing dependency warnings
 
 **Plugin Contracts (9 tests)**
+
 - Interface implementation
 - Metadata requirements
 - Data sharing conventions
 - Lifecycle management
 
 **Integration (10 tests)**
+
 - Plugin discovery
 - Configuration loading
 - Render pipeline
@@ -75,6 +80,7 @@ tests/
 ## Adding New Tests
 
 When adding features, ask:
+
 1. **Does this change a contract?** → Add contract test
 2. **Does this affect dependency resolution?** → Add dependency test
 3. **Does this break the happy path?** → Add integration test

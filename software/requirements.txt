@@ -1,14 +1,17 @@
-# Core dependencies
-opencv-python>=4.8.0
-numpy>=1.24.0
-pyyaml>=6.0
+# WARLOCK - Two-Pi System Dependencies
+#
+# This file installs dependencies for BOTH units.
+# Use this for development on a single machine.
+#
+# For production deployment on separate hardware:
+# - Helmet Pi: pip install -r helmet/requirements.txt
+# - Body Pi:   pip install -r body/requirements.txt
 
-# Machine learning
-ultralytics>=8.0.0
+# Common dependencies (both units)
+-r common/requirements.txt
 
-# HTTP requests for map tiles
-requests>=2.31.0
+# Helmet-Mounted Unit (HMU)
+-r helmet/requirements.txt
 
-# Testing (optional, but needed for CI)
-pytest>=8.0.0
-pytest-cov>=4.1.0
+# Body-Mounted Unit (BMU)
+-r body/requirements.txt

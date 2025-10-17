@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import List, Dict, Type, Optional, Any
 import numpy as np
 
-from .plugin_base import HUDPlugin, HUDContext, PluginConfig, PluginMetadata
+from common.plugin_base import HUDPlugin, HUDContext, PluginConfig, PluginMetadata
 
 
 class PluginManager:
