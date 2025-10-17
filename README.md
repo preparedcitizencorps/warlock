@@ -21,27 +21,44 @@ Build a helmet-mounted AR system with:
 
 ## QUICK START
 
+### Standalone Mode (No Hardware Required)
+
 ```bash
 git clone https://github.com/preparedcitizencorps/warlock.git
-cd warlock
+cd warlock/software
 pip install -r requirements.txt
-python software/warlock.py
+python3 helmet/helmet_main.py --standalone
+```
+
+### Two-Pi System (HMU + BMU)
+
+**Terminal 1 - Body Unit:**
+```bash
+cd warlock/software
+python3 body/body_main.py
+```
+
+**Terminal 2 - Helmet Unit:**
+```bash
+cd warlock/software
+python3 helmet/helmet_main.py
 ```
 
 **Controls:**
 - `Q` - Quit | `H` - Help | `P` - Plugin panel
-- `Y` - YOLO toggle | `F` - FPS | `B` - Boundaries
-- `[`/`]` - Adjust padding | Arrows - Simulate movement
+- `Y` - YOLO toggle | `M` - Map | `F` - FPS
+- Arrow keys - Simulate movement (standalone mode)
 
 ---
 
 ## CAPABILITIES
 
-- **Modular plugin architecture** - Hot-swappable components
-- **Real-time object detection** - YOLO11n with friend/foe IFF
-- **GPS navigation** - Compass + motion tracker with terrain
-- **Runtime management** - Live reload, enable/disable plugins
-- **AR display ready** - Configurable padding for headset FOV
+- **Two-unit architecture** - Distributed HMU (helmet) + BMU (body) system
+- **Modular plugin system** - Hot-swappable components with dependency resolution
+- **Real-time AI detection** - YOLO11 with Hailo-8L acceleration (30-60 FPS)
+- **GPS navigation** - Compass + terrain overlay with OpenTopoMap
+- **Network resilient** - USB-C primary with WiFi failover
+- **AR display ready** - Rokid Max glasses with tactical HUD overlay
 
 ---
 
@@ -58,6 +75,9 @@ WARLOCK uses a modular plugin architecture. Want to add custom functionality?
 
 **Quick example:**
 ```python
+from common.plugin_base import HUDPlugin, PluginMetadata
+import numpy as np
+
 class MyPlugin(HUDPlugin):
     METADATA = PluginMetadata(
         name="My Plugin",
@@ -66,85 +86,107 @@ class MyPlugin(HUDPlugin):
         description="Custom functionality"
     )
 
+    def initialize(self) -> bool:
+        return True
+
+    def update(self, delta_time: float):
+        pass
+
     def render(self, frame: np.ndarray) -> np.ndarray:
         # Draw on frame
         return frame
 ```
 
-Add to `hud_config.yaml`, run, and press `P` for hot-reload!
+1. Save to `software/helmet/hud/plugins/my_plugin.py`
+2. Add to `helmet/helmet_config.yaml`
+3. Press `P` for hot-reload!
 
 ---
 
 ## PERFORMANCE & TESTING
 
-- **20-30 FPS** on laptop CPU (no GPU required)
+### Laptop/Desktop (Development)
+- **20-30 FPS** on CPU (no GPU required)
 - **30-50ms** YOLO inference per frame
 - **~500MB** memory with YOLO loaded
+
+### Raspberry Pi 5 with Hailo-8L (Production)
+- **30-60 FPS** with AI accelerator
+- **15-20ms** YOLO inference per frame
+- **Real-time** object tracking and HUD overlay
 
 **Run tests:**
 ```bash
 cd software
 pytest -v
+# All 30 tests should pass
 ```
 
 **Troubleshooting:**
-- **Plugin not loading?** Check class inherits `HUDPlugin`, has class-level `METADATA`, file in `software/hud/plugins/`
+- **Plugin not loading?** Check class inherits `HUDPlugin`, has class-level `METADATA`, file in `software/helmet/hud/plugins/`
 - **YOLO error?** Run: `python -c "from ultralytics import YOLO; YOLO('yolo11n.pt')"`
-- **Hot reload fails?** Check console errors, try manual reload (`P` → select → `R`)
+- **HMU won't connect?** Check BMU is running first, verify IP in `helmet/helmet_config.yaml`
+- **Import errors?** Make sure you're in `software/` directory: `export PYTHONPATH=$(pwd)`
 
 ---
 
 ## ROADMAP
 
-**Phase 0: HUD & AI** ✅ COMPLETE
-- Plugin architecture, YOLO detection, hot-reload
+**Phase 1: Network Foundation** ✅ COMPLETE
+- Two-Pi architecture (HMU + BMU)
+- Network protocol and failover
+- GPS data flow and plugin system
 
-**Phase 1: Night Vision** 🔄 IN PROGRESS
-- Raspberry Pi 5 port, low-light camera (IMX462) to validate digital night vision
-- Hailo-8L AI accelerator for 60+ FPS object detection
+**Phase 2: Hardware Integration** 🔄 IN PROGRESS
+- Real GPS modules (U-blox ZED-F9P for RTK)
+- IMU sensors (BNO085)
+- Thermal camera (FLIR Lepton 3.5)
+- Low-light camera (IMX462)
 
-**Phase 2: AR Display** 📋 PLANNED
-- AR glasses integration (Rokid Max), heads-up display projection
-- Halo-inspired HUD with detection overlays, compass, battery status
+**Phase 3: SIGINT** 📋 PLANNED
+- RTL-SDR RF scanning (150-500m detection)
+- WiFi CSI through-wall detection (5-15m)
+- Signal triangulation with multi-unit coordination
+- Alert display on HUD
 
-**Phase 3: Sensor Fusion** 📋 PLANNED
-- Thermal imaging - FLIR Lepton 3.5 for heat signature detection (50m+ range)
-- WiFi sensing - Through-wall motion detection using CSI (5-15m range)
-- Multi-modal sensor fusion: visual + thermal + RF for complete situational awareness
+**Phase 4: Communications** 📋 PLANNED
+- SA818 radio integration (VHF/UHF)
+- Hands-free PTT and voice control
+- WiFi mesh (0-300m squad coordination)
+- LoRa mesh (300m-5km inter-squad relay)
 
-**Phase 4: Navigation & Comms** 📋 PLANNED
-- GPS, compass (BNO085), terrain maps, waypoint navigation
-- Radio integration - SA818 VHF/UHF modules for Baofeng compatibility
-- Hands-free PTT, voice-activated comms, dual-watch mode
+**Phase 5: ATAK Integration** 📋 PLANNED
+- CoT message publishing
+- Team position sharing
+- Waypoint navigation
+- TAK server bridge
 
-**Phase 5: Electronic Warfare** 📋 PLANNED
-- **RF triangulation** - RTL-SDR receiver for distributed SIGINT array
-- Squad-level signal detection and localization (150-250m range)
-- Detect enemy radios, drones, electronic devices before visual contact
-- Frequency scanning, signal fingerprinting, jamming detection
-
-**Phase 6: Mesh Networking** 📋 PLANNED
-- LoRa/OpenMANET mesh for beyond-line-of-sight coordination
-- Cross-network routing (mesh ↔ traditional radio bridge)
-- Team position sharing, encrypted voice/data, ATAK integration
-- Relay mode to extend Baofeng range via mesh network
-
-**Phase 7: Field Hardening** 📋 PLANNED
-- Complete helmet mounting system, weatherproofing
-- 4+ hour battery life, field-tested durability
-- Custom 3D-printed enclosures, professional finish
+**Phase 6: Field Hardening** 📋 PLANNED
+- Weatherproof enclosures
+- Extended battery life (8+ hours)
+- 3D-printed helmet mount
+- Ruggedized field testing
 
 ---
 
 ### Detection Capabilities Summary
 | Sensor | Range | Best For | Status |
 |--------|-------|----------|--------|
-| **Low-light Camera** | 50-200m | Visual ID, daylight/night | 🔄 Phase 1 |
-| **Thermal Imaging** | 50-300m | Heat signatures, darkness | 📋 Phase 3 |
-| **WiFi Sensing** | 5-15m | Through-wall motion | 📋 Phase 3 |
-| **RF Triangulation** | 150-500m | Radio emitters, drones | 📋 Phase 5 |
+| **Low-light Camera** | 50-200m | Visual ID, daylight/night | 🔄 Phase 2 |
+| **Thermal Imaging** | 50-300m | Heat signatures, darkness | 🔄 Phase 2 |
+| **WiFi CSI** | 5-15m | Through-wall motion | 📋 Phase 3 |
+| **RF Triangulation** | 150-500m | Radio emitters, drones | 📋 Phase 3 |
 
-**Combined:** Near-omniscient battlefield awareness across all ranges and conditions.
+**Combined:** Multi-sensor fusion for comprehensive situational awareness.
+
+---
+
+## DOCUMENTATION
+
+- **[System Overview](docs/SYSTEM-OVERVIEW.md)** - Hardware, capabilities, and deployment
+- **[Technical Specs](docs/TECHNICAL-SPECS.md)** - Detailed specifications and protocols
+- **[Field Manual](docs/FIELD-MANUAL.md)** - Operational procedures and tactics
+- **[Software README](software/README.md)** - Development and testing guide
 
 ---
 
