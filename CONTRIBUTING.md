@@ -38,10 +38,50 @@ Documentation contributions are gold. Help us:
 - Create assembly guides with photos
 - Write tutorials
 
+## Development Setup
+
+### Install Dependencies
+
+```bash
+cd software
+pip install -r requirements.txt -r requirements-dev.txt
+```
+
+### Install Pre-commit Hooks (Recommended)
+
+Pre-commit hooks automatically format and lint your code before each commit:
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+**What gets checked:**
+- Python formatting (black, 120 char lines)
+- Import sorting (isort)
+- Syntax errors (flake8)
+- Trailing whitespace
+- YAML/JSON validation
+
+**Manual commands:**
+```bash
+# Run all checks on all files
+pre-commit run --all-files
+
+# Skip hooks for a commit (not recommended)
+git commit --no-verify
+
+# Switch to pre-push hooks (runs before push instead of commit)
+pre-commit uninstall
+pre-commit install --hook-type pre-push
+```
+
 ## Code Style
 
 **Python:**
 - Follow PEP 8
+- Line length: 120 characters (enforced by black)
+- Import sorting: isort with black profile
 - Comment your code
 - Keep functions small and focused
 - Use meaningful variable names
