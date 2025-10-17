@@ -15,7 +15,6 @@ import time
 from pathlib import Path
 import sys
 
-# Add parent directory to path for common imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from common.plugin_base import HUDContext
@@ -48,14 +47,12 @@ class HMUApplication:
         self.config_path = config_path or str(Path(__file__).parent / "helmet_config.yaml")
         self.network_enabled = network_enabled
 
-        # Core components
         self.context = None
         self.plugin_manager = None
         self.camera = None
         self.network_client = None
         self.input_manager = None
 
-        # Display state
         self.show_help = False
         self.running = False
 
@@ -65,14 +62,11 @@ class HMUApplication:
         logger.info("WARLOCK HELMET-MOUNTED UNIT")
         logger.info("=" * 60)
 
-        # Load configuration
         logger.info("Loading configuration...")
         config = load_config(self.config_path)
 
-        # Initialize HUD context
         self.context = HUDContext(self.DEFAULT_FRAME_WIDTH, self.DEFAULT_FRAME_HEIGHT)
 
-        # Initialize plugin manager
         script_dir = Path(__file__).parent
         plugin_dir = str(script_dir / "hud" / "plugins")
         self.plugin_manager = PluginManager(self.context, plugin_dir=plugin_dir)
@@ -81,12 +75,10 @@ class HMUApplication:
         logger.info("Discovering plugins...")
         self.plugin_manager.discover_plugins()
 
-        # Initialize input manager
         logger.info("Initializing input system...")
         self.input_manager = self._initialize_input_manager(config)
         self.context.state['input_manager'] = self.input_manager
 
-        # Load plugins
         logger.info("Loading plugins...")
         plugin_configs, visibility_map = self._prepare_plugin_configs(config)
 
@@ -112,7 +104,6 @@ class HMUApplication:
         self.camera = CameraController(cap)
         self.context.state['camera_handle'] = self.camera
 
-        # Initialize network client (connects to BMU)
         if self.network_enabled:
             logger.info("Connecting to BMU...")
             bmu_config = config.get('network', {})
@@ -130,7 +121,6 @@ class HMUApplication:
                 self.network_enabled = False
         else:
             logger.info("Network disabled - running in standalone mode")
-            # Use simulated data for standalone mode
             self._setup_simulated_data()
 
         logger.info("=" * 60)
@@ -139,7 +129,6 @@ class HMUApplication:
 
     def _setup_simulated_data(self):
         """Setup simulated GPS and team data for standalone mode."""
-        # Simulated position (Colorado Springs)
         self.context.state['player_position'] = {
             'latitude': 38.8339,
             'longitude': -104.8214,
@@ -147,7 +136,6 @@ class HMUApplication:
             'heading': 0.0
         }
 
-        # Simulated team units
         self.context.state['friendly_units'] = [
             {
                 'id': 'alpha-1',
@@ -166,7 +154,6 @@ class HMUApplication:
 
         keybinds_config = config.get('keybinds', {})
 
-        # System keybinds
         system_binds = keybinds_config.get('system', {})
         if system_binds:
             input_manager.register_keybind(system_binds.get('quit', 'q'), 'Quit', 'system')
@@ -203,15 +190,12 @@ class HMUApplication:
         self.running = True
 
         while self.running:
-            # Capture frame using public API
             ret, frame = self.camera.read_frame()
             if not ret:
                 logger.error("Failed to grab frame")
                 break
 
-            # Get data from BMU (or use simulated data)
             if self.network_enabled and self.network_client:
-                # Update context with network data
                 gps_pos = self.network_client.get_latest('gps_position')
                 if gps_pos:
                     self.context.state['player_position'] = gps_pos
@@ -220,25 +204,19 @@ class HMUApplication:
                 if team_units:
                     self.context.state['friendly_units'] = team_units
 
-                # RF and WiFi alerts
                 rf_alerts = self.network_client.get_latest('rf_alerts')
                 wifi_alerts = self.network_client.get_latest('wifi_alerts')
                 self.context.state['rf_alerts'] = rf_alerts or []
                 self.context.state['wifi_alerts'] = wifi_alerts or []
 
-            # Update plugins
             self.plugin_manager.update()
 
-            # Render HUD
             frame = self.plugin_manager.render(frame)
 
-            # Display frame
             cv2.imshow('WARLOCK HMU', frame)
 
-            # Handle keyboard input
             key = cv2.waitKey(1) & 0xFF
 
-            # Let plugins handle key first
             key_handled = self.plugin_manager.handle_key(key)
 
             if not key_handled:

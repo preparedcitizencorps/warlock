@@ -33,7 +33,6 @@ class HMUNetworkClient(NetworkConnection):
         self.tcp_port = tcp_port or self.DEFAULT_PORT_TCP
         self.udp_port = udp_port or self.DEFAULT_PORT_UDP
 
-        # Latest data cache (for plugins to query) - protected by lock
         self._data_lock = threading.Lock()
         self.latest_data: Dict[str, Any] = {
             'gps_position': None,
@@ -44,8 +43,7 @@ class HMUNetworkClient(NetworkConnection):
             'atak_data': None,
         }
 
-        # Connection type
-        self.connection_type = "cable"  # or "wifi"
+        self.connection_type = "cable"
 
     def connect(self) -> bool:
         """Connect to BMU server.
@@ -56,21 +54,18 @@ class HMUNetworkClient(NetworkConnection):
         logger.info(f"Connecting to BMU at {self.server_host}:{self.tcp_port}")
 
         try:
-            # Create TCP socket
             self.tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.tcp_socket.settimeout(self.TIMEOUT)
             self.tcp_socket.connect((self.server_host, self.tcp_port))
             logger.info("TCP connection established")
 
-            # Create UDP socket
             self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self.udp_socket.bind(('', 0))  # Bind to any available port
+            self.udp_socket.bind(('', 0))
             logger.info(f"UDP socket created on port {self.udp_socket.getsockname()[1]}")
 
             self.status = ConnectionStatus.CONNECTED
-            self.last_heartbeat_received = time.time()  # Initialize to current time
+            self.last_heartbeat_received = time.time()
 
-            # Start network threads
             self.start()
 
             return True
@@ -84,27 +79,22 @@ class HMUNetworkClient(NetworkConnection):
         """Start network threads."""
         super().start()
 
-        # TCP send thread
         tcp_send_thread = threading.Thread(target=self._tcp_send_loop, daemon=True)
         tcp_send_thread.start()
         self.threads.append(tcp_send_thread)
 
-        # TCP receive thread
         tcp_recv_thread = threading.Thread(target=self._tcp_recv_loop, daemon=True)
         tcp_recv_thread.start()
         self.threads.append(tcp_recv_thread)
 
-        # UDP send thread
         udp_send_thread = threading.Thread(target=self._udp_send_loop, daemon=True)
         udp_send_thread.start()
         self.threads.append(udp_send_thread)
 
-        # UDP receive thread
         udp_recv_thread = threading.Thread(target=self._udp_recv_loop, daemon=True)
         udp_recv_thread.start()
         self.threads.append(udp_recv_thread)
 
-        # Heartbeat thread
         heartbeat_thread = threading.Thread(target=self._heartbeat_loop, daemon=True)
         heartbeat_thread.start()
         self.threads.append(heartbeat_thread)
@@ -158,7 +148,6 @@ class HMUNetworkClient(NetworkConnection):
         while self.running:
             self.send_heartbeat()
 
-            # Check connection health
             if not self.monitor_connection() and self.status == ConnectionStatus.CONNECTED:
                 logger.warning("Connection lost, attempting WiFi failover")
                 self.attempt_wifi_failover()
@@ -215,10 +204,8 @@ class HMUNetworkClient(NetworkConnection):
                 self.latest_data['atak_data'] = payload
 
         def handle_heartbeat(payload):
-            # Just update timestamp
             pass
 
-        # Register handlers
         self.register_callback(MessageType.GPS_UPDATE, handle_gps_update)
         self.register_callback(MessageType.TEAM_POSITIONS, handle_team_positions)
         self.register_callback(MessageType.RF_ALERT, handle_rf_alert)

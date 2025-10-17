@@ -112,7 +112,6 @@ class TerrainMapCache:
         start_x = center_x - tiles_wide // 2
         start_y = center_y - tiles_high // 2
 
-        # Build composite image
         tiles = []
         for ty in range(start_y, start_y + tiles_high):
             row = []
@@ -129,12 +128,10 @@ class TerrainMapCache:
 
         composite = np.vstack(tiles)
 
-        # Calculate pixel position of target lat/lon
         n = 2.0 ** zoom
         pixel_x = ((lon + 180.0) / 360.0 * n - start_x) * tile_size
         pixel_y = ((1.0 - math.asinh(math.tan(math.radians(lat))) / math.pi) / 2.0 * n - start_y) * tile_size
 
-        # Crop to desired size centered on target
         x1 = int(pixel_x - width_pixels // 2)
         y1 = int(pixel_y - height_pixels // 2)
         x2 = x1 + width_pixels
@@ -197,7 +194,6 @@ class TerrainOverlay:
         """Get rotated terrain overlay for current position."""
         current_time = time.time()
 
-        # Determine if we need to update the map
         needs_update = (
             self.current_map_unrotated is None or
             current_time - self.last_update_time > self.update_interval or
@@ -208,7 +204,6 @@ class TerrainOverlay:
             self.last_radius_meters != radius_meters
         )
 
-        # Update map if needed
         if needs_update:
             zoom_level = self._calculate_zoom_for_radius(radius_meters)
             fetch_size = max(width, height) * 3
@@ -225,7 +220,6 @@ class TerrainOverlay:
         if self.current_map_unrotated is None:
             return None
 
-        # Rotate map based on heading (player's forward direction always points up)
         h, w = self.current_map_unrotated.shape[:2]
         center = (w // 2, h // 2)
 
@@ -238,7 +232,6 @@ class TerrainOverlay:
                                  borderMode=cv2.BORDER_CONSTANT,
                                  borderValue=(0, 0, 0))
 
-        # Crop to desired size from center
         x1 = (w - width) // 2
         y1 = (h - height) // 2
         x2 = x1 + width
@@ -251,7 +244,6 @@ class TerrainOverlay:
 
         cropped = rotated[y1:y2, x1:x2]
 
-        # Ensure output is the right size
         if cropped.shape[:2] != (height, width):
             result = np.zeros((height, width, 3), dtype=np.uint8)
             h_crop, w_crop = cropped.shape[:2]
@@ -296,47 +288,39 @@ class MiniMapPlugin(HUDPlugin):
     def __init__(self, context: HUDContext, config: PluginConfig):
         super().__init__(context, config)
 
-        # Tracker state
         self.player_pos: Optional[dict] = None
         self.friendly_units: List[dict] = []
-        self.zoom_level = self.get_setting('zoom_level', 300)  # meters radius
+        self.zoom_level = self.get_setting('zoom_level', 300)
         self.show_terrain = self.get_setting('show_terrain', True)
 
-        # Terrain overlay (now integrated)
         if self.show_terrain:
             self.terrain = TerrainOverlay()
         else:
             self.terrain = None
 
-        # Size (will be set in initialize)
         self.tracker_size = 0
         self.radius = 0
 
-        # Colors
-        self.primary_color = (220, 220, 210)  # Off-white
-        self.secondary_color = (180, 180, 170)  # Dimmer off-white
-        self.bg_color = (40, 30, 20)  # Dark background
-        self.ring_color = (140, 140, 130)  # Off-white distance rings
-        self.friendly_color = (255, 200, 100)  # Cyan blue
+        self.primary_color = (220, 220, 210)
+        self.secondary_color = (180, 180, 170)
+        self.bg_color = (40, 30, 20)
+        self.ring_color = (140, 140, 130)
+        self.friendly_color = (255, 200, 100)
 
     def initialize(self) -> bool:
         """Initialize mini-map plugin."""
-        # Calculate size based on screen width
         self.tracker_size = int(self.context.frame_width * 0.15)
         self.radius = self.tracker_size // 2 - 10
 
-        # Position will be calculated dynamically in render() to respect border padding changes
         self.config.position = PluginPosition.CUSTOM
 
         return True
 
     def update(self, delta_time: float):
         """Update mini-map state from context."""
-        # Get player position from context
         if 'player_position' in self.context.state:
             self.player_pos = self.context.state['player_position']
 
-        # Get friendly units from context
         if 'friendly_units' in self.context.state:
             self.friendly_units = self.context.state['friendly_units']
 
@@ -368,19 +352,16 @@ class MiniMapPlugin(HUDPlugin):
         if not self.visible or self.player_pos is None:
             return frame
 
-        # Calculate position dynamically based on current border padding
         border_padding = self._get_border_padding_data()
         padding_left = border_padding.get('padding_left', 0)
         padding_bottom = border_padding.get('padding_bottom', 0)
 
-        # Position mini-map in bottom left within safe area
-        x = padding_left + 20  # Offset from safe area left
-        y = self.context.frame_height - padding_bottom - self.tracker_size - 20  # Offset from safe area bottom
+        x = padding_left + 20
+        y = self.context.frame_height - padding_bottom - self.tracker_size - 20
 
         center_x = x + self.tracker_size // 2
         center_y = y + self.tracker_size // 2
 
-        # Get terrain overlay if enabled
         terrain_img = None
         if self.show_terrain and self.terrain is not None:
             try:
@@ -394,49 +375,38 @@ class MiniMapPlugin(HUDPlugin):
             except Exception as e:
                 print(f"Warning: Failed to get terrain overlay: {e}")
 
-        # Create circular mask for the tracker
         mask = np.zeros((self.tracker_size, self.tracker_size), dtype=np.uint8)
         cv2.circle(mask, (self.tracker_size // 2, self.tracker_size // 2),
                   self.radius, 255, -1)
 
-        # If we have terrain, blend it
         if terrain_img is not None and terrain_img.shape[:2] == (self.tracker_size, self.tracker_size):
-            # Apply circular mask to terrain
             terrain_masked = cv2.bitwise_and(terrain_img, terrain_img, mask=mask)
 
-            # Darken terrain for better HUD visibility
             terrain_masked = cv2.addWeighted(terrain_masked, 0.4,
                                             np.zeros_like(terrain_masked), 0, 0)
 
-            # Place terrain in tracker position
             roi_y1, roi_y2 = y, y + self.tracker_size
             roi_x1, roi_x2 = x, x + self.tracker_size
 
-            # Ensure ROI is within frame bounds
             if (roi_y2 <= frame.shape[0] and roi_x2 <= frame.shape[1] and
                 roi_y1 >= 0 and roi_x1 >= 0):
-                # Blend terrain into frame
                 frame_roi = frame[roi_y1:roi_y2, roi_x1:roi_x2].copy()
                 frame_roi[mask > 0] = terrain_masked[mask > 0]
                 frame[roi_y1:roi_y2, roi_x1:roi_x2] = frame_roi
         else:
-            # Draw semi-transparent background circle if no terrain
             overlay = frame.copy()
             cv2.circle(overlay, (center_x, center_y), self.radius + 5,
                       self.bg_color, -1, cv2.LINE_AA)
             cv2.addWeighted(overlay, 0.5, frame, 0.5, 0, frame)
 
-        # Draw outer border
         cv2.circle(frame, (center_x, center_y), self.radius + 5,
                   self.primary_color, 2, cv2.LINE_AA)
 
-        # Draw concentric circles for distance (3 rings)
         for i in range(1, 4):
             ring_radius = int((self.radius / 3) * i)
             cv2.circle(frame, (center_x, center_y), ring_radius,
                       self.ring_color, 1, cv2.LINE_AA)
 
-        # Draw friendly units
         for unit in self.friendly_units:
             lat = unit.get('latitude')
             lon = unit.get('longitude')
@@ -449,8 +419,6 @@ class MiniMapPlugin(HUDPlugin):
                 lat, lon
             )
 
-            # Rotate by heading to align with player's view
-            # Positive heading rotates units clockwise to match terrain rotation
             heading_rad = math.radians(self.player_pos.get('heading', 0))
             cos_h = math.cos(heading_rad)
             sin_h = math.sin(heading_rad)
@@ -461,16 +429,13 @@ class MiniMapPlugin(HUDPlugin):
             marker_x = center_x + px
             marker_y = center_y + py
 
-            # Check if within circular bounds
             dist_from_center = math.sqrt(px**2 + py**2)
             if dist_from_center <= self.radius:
-                # Draw friendly marker (cyan dot)
                 cv2.circle(frame, (marker_x, marker_y), 4,
                          self.friendly_color, -1, cv2.LINE_AA)
                 cv2.circle(frame, (marker_x, marker_y), 5,
                          self.friendly_color, 1, cv2.LINE_AA)
 
-        # Draw player marker at center (triangle pointing up)
         player_size = 6
         pts = np.array([
             [center_x, center_y - player_size],
@@ -479,7 +444,6 @@ class MiniMapPlugin(HUDPlugin):
         ], np.int32)
         cv2.fillPoly(frame, [pts], self.primary_color, cv2.LINE_AA)
 
-        # Draw range indicator
         range_text = f"{int(self.zoom_level)}m"
         cv2.putText(frame, range_text, (x + 5, y + self.tracker_size - 5),
                    cv2.FONT_HERSHEY_SIMPLEX, 0.35, self.primary_color, 1, cv2.LINE_AA)

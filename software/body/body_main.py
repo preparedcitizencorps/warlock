@@ -17,7 +17,6 @@ import threading
 import sys
 from pathlib import Path
 
-# Add parent directory to path for common imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from body.core.network_server import BMUNetworkServer
@@ -42,7 +41,6 @@ class BMUApplication:
         self.source_id = source_id
         self.running = False
 
-        # Core components
         self.network_server = None
         self.gps = None
 
@@ -52,11 +50,9 @@ class BMUApplication:
         logger.info("WARLOCK BODY-MOUNTED UNIT")
         logger.info("=" * 60)
 
-        # Initialize GPS (simulator for now)
         logger.info("Initializing GPS...")
         self.gps = GPSSimulator()
 
-        # Initialize network server
         logger.info("Starting network server...")
         self.network_server = BMUNetworkServer(source_id=self.source_id)
         self.network_server.start()
@@ -69,11 +65,9 @@ class BMUApplication:
         """Main application loop."""
         self.running = True
 
-        # Start GPS broadcast thread
         gps_thread = threading.Thread(target=self._gps_broadcast_loop, daemon=True)
         gps_thread.start()
 
-        # Main loop (just keeps running)
         try:
             while self.running:
                 time.sleep(1)
@@ -88,7 +82,7 @@ class BMUApplication:
             if self.network_server and self.network_server.has_clients():
                 self.network_server.broadcast_gps(position)
 
-            time.sleep(0.1)  # 10 Hz
+            time.sleep(0.1)
 
     def cleanup(self):
         """Cleanup resources."""
