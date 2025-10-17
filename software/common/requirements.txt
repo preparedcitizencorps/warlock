@@ -4,6 +4,10 @@
 numpy>=1.24.0
 pyyaml>=6.0
 
+# Testing (required for CI)
+pytest>=8.0.0
+pytest-cov>=4.1.0
+
 # These are included in Python standard library, listed for clarity:
 # - socket (networking)
 # - threading (concurrency)
