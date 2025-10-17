@@ -3,7 +3,7 @@
 
 import cv2
 import threading
-from typing import Optional
+from typing import Optional, Dict, Tuple
 
 
 class CameraController:
@@ -12,7 +12,7 @@ class CameraController:
     Prevents plugins from accidentally releasing the camera or calling destructive methods.
     """
 
-    WHITELISTED_PROPERTIES = {
+    WHITELISTED_PROPERTIES = frozenset({
         cv2.CAP_PROP_EXPOSURE,
         cv2.CAP_PROP_GAIN,
         cv2.CAP_PROP_BRIGHTNESS,
@@ -24,7 +24,7 @@ class CameraController:
         cv2.CAP_PROP_SHARPNESS,
         cv2.CAP_PROP_GAMMA,
         cv2.CAP_PROP_BACKLIGHT,
-    }
+    })
 
     EXPOSURE_MIN = -13
     EXPOSURE_MAX = 0
@@ -33,7 +33,20 @@ class CameraController:
     BRIGHTNESS_MIN = 0
     BRIGHTNESS_MAX = 255
 
+    PROPERTY_RANGES: Dict[int, Tuple[float, float]] = {
+        cv2.CAP_PROP_EXPOSURE: (EXPOSURE_MIN, EXPOSURE_MAX),
+        cv2.CAP_PROP_GAIN: (GAIN_MIN, GAIN_MAX),
+        cv2.CAP_PROP_BRIGHTNESS: (BRIGHTNESS_MIN, BRIGHTNESS_MAX),
+    }
+
     def __init__(self, capture: cv2.VideoCapture):
+        if capture is None:
+            raise ValueError("VideoCapture cannot be None")
+        if not hasattr(capture, 'isOpened'):
+            raise ValueError("Invalid VideoCapture object: missing isOpened method")
+        if not capture.isOpened():
+            raise ValueError("VideoCapture is not opened")
+
         self._capture = capture
         self._lock = threading.Lock()
 
@@ -81,11 +94,16 @@ class CameraController:
 
     def set_property(self, prop_id: int, value: float) -> bool:
         """
-        Set camera property with whitelist validation.
+        Set camera property with whitelist and range validation.
         Only allows setting properties that are safe for plugin access.
         """
         if prop_id not in self.WHITELISTED_PROPERTIES:
             return False
+
+        if prop_id in self.PROPERTY_RANGES:
+            min_val, max_val = self.PROPERTY_RANGES[prop_id]
+            if not min_val <= value <= max_val:
+                return False
 
         with self._lock:
             return self._capture.set(prop_id, value)
