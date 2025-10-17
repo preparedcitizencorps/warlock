@@ -9,7 +9,7 @@ import platform
 
 from hud import HUDContext, PluginManager
 from hud.config_loader import load_config, create_plugin_config
-from hud.camera_controller import CameraController
+from core import CameraController, InputManager
 
 
 class ArrowKeys:
@@ -189,6 +189,35 @@ def draw_help_overlay(frame: np.ndarray, plugins_info: list) -> np.ndarray:
     return frame
 
 
+def draw_keybinds_overlay(frame: np.ndarray, input_manager: InputManager) -> np.ndarray:
+    OVERLAY_WIDTH = 550
+    OVERLAY_HEIGHT = 500
+    OVERLAY_ALPHA = 0.7
+    LINE_HEIGHT = 20
+    VERTICAL_PADDING = 20
+    COLUMN_PADDING = 250
+
+    overlay = frame.copy()
+    h, w = frame.shape[:2]
+
+    center_x = w // 2
+    center_y = h // 2
+    overlay_x1 = center_x - OVERLAY_WIDTH // 2
+    overlay_y1 = center_y - OVERLAY_HEIGHT // 2
+    overlay_x2 = center_x + OVERLAY_WIDTH // 2
+    overlay_y2 = center_y + OVERLAY_HEIGHT // 2
+
+    cv2.rectangle(overlay, (overlay_x1, overlay_y1), (overlay_x2, overlay_y2), (0, 0, 0), -1)
+    cv2.addWeighted(overlay, OVERLAY_ALPHA, frame, 1 - OVERLAY_ALPHA, 0, frame)
+
+    keybinds = _build_keybinds_from_input_manager(input_manager)
+    _render_keybinds_text(frame, keybinds, overlay_x1 + 20,
+                         center_y - OVERLAY_HEIGHT // 2 + VERTICAL_PADDING,
+                         LINE_HEIGHT, COLUMN_PADDING)
+
+    return frame
+
+
 def _build_help_text(plugins_info: list) -> list:
     help_text = [
         "WARLOCK TACTICAL HUD",
@@ -237,6 +266,146 @@ def _render_help_text(frame: np.ndarray, help_text: list, center_x: int, start_y
                    cv2.FONT_HERSHEY_SIMPLEX, font_scale, color, thickness)
 
 
+def _build_keybinds_from_input_manager(input_manager: InputManager) -> list:
+    keybinds = [("KEYBINDS", None), ("", None)]
+
+    categories = input_manager.get_keybinds_by_category()
+
+    for category_name, bindings in categories:
+        category_title = category_name.upper()
+        keybinds.append((f"--- {category_title} ---", None))
+
+        for binding in bindings:
+            keybinds.append((binding.key.upper(), binding.description))
+
+        keybinds.append(("", None))
+
+    return keybinds
+
+
+def _render_keybinds_text(frame: np.ndarray, keybinds: list, start_x: int,
+                         start_y: int, line_height: int, column_padding: int):
+    TITLE_FONT_SCALE = 0.6
+    KEY_FONT_SCALE = 0.45
+    DESC_FONT_SCALE = 0.4
+    TITLE_THICKNESS = 2
+    KEY_THICKNESS = 2
+    DESC_THICKNESS = 1
+    TITLE_COLOR = (220, 220, 210)
+    KEY_COLOR = (100, 200, 255)
+    DESC_COLOR = (180, 180, 170)
+    CATEGORY_COLOR = (150, 150, 140)
+
+    for i, (key, desc) in enumerate(keybinds):
+        y_pos = start_y + i * line_height
+
+        if desc is None:
+            if key:
+                if key.startswith("---"):
+                    cv2.putText(frame, key, (start_x, y_pos),
+                               cv2.FONT_HERSHEY_SIMPLEX, KEY_FONT_SCALE,
+                               CATEGORY_COLOR, KEY_THICKNESS)
+                else:
+                    text_size = cv2.getTextSize(key, cv2.FONT_HERSHEY_SIMPLEX,
+                                               TITLE_FONT_SCALE, TITLE_THICKNESS)[0]
+                    text_x = start_x + column_padding - text_size[0] // 2
+                    cv2.putText(frame, key, (text_x, y_pos),
+                               cv2.FONT_HERSHEY_SIMPLEX, TITLE_FONT_SCALE,
+                               TITLE_COLOR, TITLE_THICKNESS)
+        else:
+            cv2.putText(frame, key, (start_x, y_pos),
+                       cv2.FONT_HERSHEY_SIMPLEX, KEY_FONT_SCALE,
+                       KEY_COLOR, KEY_THICKNESS)
+
+            cv2.putText(frame, desc, (start_x + 120, y_pos),
+                       cv2.FONT_HERSHEY_SIMPLEX, DESC_FONT_SCALE,
+                       DESC_COLOR, DESC_THICKNESS)
+
+
+def _initialize_input_manager(config: dict) -> InputManager:
+    """Initialize InputManager with keybinds from config."""
+    input_manager = InputManager()
+
+    keybinds_config = config.get('keybinds', {})
+
+    system_binds = keybinds_config.get('system', {})
+    if system_binds:
+        input_manager.register_keybind(
+            system_binds.get('quit', 'q'), 'Quit', 'system'
+        )
+        input_manager.register_keybind(
+            system_binds.get('help', 'h'), 'Toggle help', 'system'
+        )
+        input_manager.register_keybind(
+            system_binds.get('keybinds_panel', 'k'), 'Toggle keybinds', 'system'
+        )
+        input_manager.register_keybind(
+            system_binds.get('save_frame', 's'), 'Save frame', 'system'
+        )
+        input_manager.register_keybind(
+            system_binds.get('plugin_panel', 'p'), 'Plugin control panel', 'system'
+        )
+
+    yolo_binds = keybinds_config.get('yolo', {})
+    if yolo_binds:
+        input_manager.register_keybind(
+            yolo_binds.get('toggle', 'y'), 'Toggle YOLO detection', 'yolo'
+        )
+        input_manager.register_keybind(
+            yolo_binds.get('cycle_mode', 'v'), 'Cycle YOLO mode (seg/box/both)', 'yolo'
+        )
+
+    exposure_binds = keybinds_config.get('exposure', {})
+    if exposure_binds:
+        input_manager.register_keybind(
+            exposure_binds.get('toggle', 'e'), 'Toggle auto-exposure', 'exposure'
+        )
+        input_manager.register_keybind(
+            exposure_binds.get('toggle_stats', 'o'), 'Toggle exposure stats', 'exposure'
+        )
+        input_manager.register_keybind(
+            exposure_binds.get('brightness_up', '+'), 'Increase target brightness', 'exposure'
+        )
+        input_manager.register_keybind(
+            exposure_binds.get('brightness_down', '-'), 'Decrease target brightness', 'exposure'
+        )
+
+    display_binds = keybinds_config.get('display', {})
+    if display_binds:
+        input_manager.register_keybind(
+            display_binds.get('toggle_fps', 'f'), 'Toggle FPS counter', 'display'
+        )
+        input_manager.register_keybind(
+            display_binds.get('toggle_borders', 'b'), 'Toggle border padding', 'display'
+        )
+        input_manager.register_keybind(
+            display_binds.get('padding_increase', ']'), 'Increase padding', 'display'
+        )
+        input_manager.register_keybind(
+            display_binds.get('padding_decrease', '['), 'Decrease padding', 'display'
+        )
+        input_manager.register_keybind(
+            display_binds.get('toggle_map', 'm'), 'Toggle mini-map', 'display'
+        )
+
+    movement_binds = keybinds_config.get('movement', {})
+    if movement_binds:
+        input_manager.register_keybind(
+            movement_binds.get('forward', 'w'), 'Move forward', 'movement'
+        )
+        input_manager.register_keybind(
+            movement_binds.get('backward', 's'), 'Move backward', 'movement'
+        )
+        input_manager.register_keybind(
+            movement_binds.get('left', 'a'), 'Turn left', 'movement'
+        )
+        input_manager.register_keybind(
+            movement_binds.get('right', 'd'), 'Turn right', 'movement'
+        )
+
+    return input_manager
+
+
 def main():
     DEFAULT_FRAME_WIDTH = 1280
     DEFAULT_FRAME_HEIGHT = 720
@@ -258,6 +427,10 @@ def main():
     print("\nLoading configuration...")
     config = load_config(str(script_dir / "hud_config.yaml"))
 
+    print("\nInitializing input system...")
+    input_manager = _initialize_input_manager(config)
+    context.state['input_manager'] = input_manager
+
     print("\nLoading plugins...")
 
     plugin_configs, visibility_map = _prepare_plugin_configs(config)
@@ -276,6 +449,8 @@ def main():
 
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, DEFAULT_FRAME_WIDTH)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, DEFAULT_FRAME_HEIGHT)
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    cap.set(cv2.CAP_PROP_FPS, 30)
 
     print(f"Video resolution: {DEFAULT_FRAME_WIDTH}x{DEFAULT_FRAME_HEIGHT}")
 
@@ -293,6 +468,7 @@ def main():
     print("=" * 60 + "\n")
 
     show_help = False
+    show_keybinds = False
     forward_move = 0
     turn_move = 0
 
@@ -315,6 +491,9 @@ def main():
         if show_help:
             frame = draw_help_overlay(frame, plugin_manager.list_plugins())
 
+        if show_keybinds:
+            frame = draw_keybinds_overlay(frame, input_manager)
+
         cv2.imshow('WARLOCK - Tactical HUD', frame)
 
         key = cv2.waitKey(1) & 0xFF
@@ -325,7 +504,9 @@ def main():
         key_handled = plugin_manager.handle_key(key)
 
         if not key_handled:
-            show_help, should_quit = _handle_system_keys(key, show_help, frame, output_dir)
+            show_help, show_keybinds, should_quit = _handle_system_keys(
+                key, show_help, show_keybinds, frame, output_dir
+            )
             forward_move, turn_move = _handle_movement_keys(key)
 
             if should_quit:
@@ -375,7 +556,8 @@ def _display_circular_dependency_error(error: ValueError):
     print(f"\n{'='*60}\n")
 
 
-def _handle_system_keys(key: int, show_help: bool, frame: np.ndarray, output_dir: Path) -> tuple:
+def _handle_system_keys(key: int, show_help: bool, show_keybinds: bool,
+                       frame: np.ndarray, output_dir: Path) -> tuple:
     should_quit = False
 
     if key == ord('q'):
@@ -387,8 +569,10 @@ def _handle_system_keys(key: int, show_help: bool, frame: np.ndarray, output_dir
         print(f"Saved: {filename}")
     elif key == ord('h'):
         show_help = not show_help
+    elif key == ord('k'):
+        show_keybinds = not show_keybinds
 
-    return show_help, should_quit
+    return show_help, show_keybinds, should_quit
 
 
 def _handle_movement_keys(key: int) -> tuple:
