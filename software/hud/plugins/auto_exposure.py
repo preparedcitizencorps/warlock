@@ -10,7 +10,7 @@ from typing import Optional
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from hud.plugin_base import HUDPlugin, HUDContext, PluginConfig, PluginMetadata
-from hud.camera_controller import CameraController
+from core.camera_controller import CameraController
 
 
 class AutoExposurePlugin(HUDPlugin):
