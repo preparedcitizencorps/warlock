@@ -18,7 +18,7 @@ class TestPluginInterface:
 
     def setup_method(self):
         self.context = HUDContext(1280, 720)
-        self.manager = PluginManager(self.context, plugin_dir="software/hud/plugins")
+        self.manager = PluginManager(self.context, plugin_dir="helmet/hud/plugins")
 
     def test_all_plugins_implement_required_methods(self):
         """Every plugin must implement abstract methods."""
@@ -75,7 +75,7 @@ class TestPluginDataContract:
 
     def setup_method(self):
         self.context = HUDContext(1280, 720)
-        self.manager = PluginManager(self.context, plugin_dir="software/hud/plugins")
+        self.manager = PluginManager(self.context, plugin_dir="helmet/hud/plugins")
 
     def test_provides_documented_in_metadata(self):
         """Plugins using provide_data() should declare what they provide."""

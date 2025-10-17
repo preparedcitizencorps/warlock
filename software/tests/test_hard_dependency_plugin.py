@@ -46,14 +46,14 @@ class TestConsumerPlugin(HUDPlugin):
 
 
 if __name__ == "__main__":
-    from hud import PluginManager
+    from helmet.hud.plugin_manager import PluginManager
 
     print("=" * 60)
     print("Testing HARD Dependency with Topological Sort")
     print("=" * 60)
 
     context = HUDContext(1280, 720)
-    pm = PluginManager(context, plugin_dir=str(Path(__file__).parent.parent / "hud" / "plugins"))
+    pm = PluginManager(context, plugin_dir=str(Path(__file__).parent.parent / "helmet" / "hud" / "plugins"))
 
     pm.discover_plugins()
 
