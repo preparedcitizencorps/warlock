@@ -8,7 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from hud.plugin_base import HUDPlugin, HUDContext, PluginConfig, PluginMetadata, PluginPosition
+from common.plugin_base import HUDPlugin, HUDContext, PluginConfig, PluginMetadata, PluginPosition
 
 
 class FPSCounterPlugin(HUDPlugin):

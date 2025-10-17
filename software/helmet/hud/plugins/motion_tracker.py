@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from hud.plugin_base import HUDPlugin, HUDContext, PluginConfig, PluginMetadata, PluginPosition
+from common.plugin_base import HUDPlugin, HUDContext, PluginConfig, PluginMetadata, PluginPosition
 
 @dataclass
 class MapTile:

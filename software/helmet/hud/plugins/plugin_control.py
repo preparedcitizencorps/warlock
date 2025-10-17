@@ -11,7 +11,7 @@ from typing import List, Dict, Optional
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from hud.plugin_base import HUDPlugin, HUDContext, PluginConfig, PluginMetadata, PluginPosition
+from common.plugin_base import HUDPlugin, HUDContext, PluginConfig, PluginMetadata, PluginPosition
 
 logger = logging.getLogger(__name__)
 
