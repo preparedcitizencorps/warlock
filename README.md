@@ -21,7 +21,15 @@ Build a helmet-mounted AR system with:
 
 ## QUICK START
 
-### Standalone Mode (No Hardware Required)
+### 🚀 Raspberry Pi 5 with Camera (15 minutes)
+
+**Got your Pi 5 and camera?** → **[PI5-QUICKSTART.md](PI5-QUICKSTART.md)**
+
+This guide takes you from unboxing to running YOLO detection in standalone mode. No BMU required.
+
+### 💻 Development on Laptop/Desktop
+
+Test WARLOCK on your computer with a webcam:
 
 ```bash
 git clone https://github.com/preparedcitizencorps/warlock.git
@@ -30,7 +38,9 @@ pip install -r requirements.txt
 python3 helmet/helmet_main.py --standalone
 ```
 
-### Two-Pi System (HMU + BMU)
+### 🔗 Two-Pi System (HMU + BMU)
+
+Once you have both units configured:
 
 **Terminal 1 - Body Unit:**
 ```bash
@@ -46,7 +56,8 @@ python3 helmet/helmet_main.py
 
 **Controls:**
 - `Q` - Quit | `H` - Help | `P` - Plugin panel
-- `Y` - YOLO toggle | `M` - Map | `F` - FPS
+- `Y` - YOLO toggle | `E` - Auto-exposure | `F` - FPS
+- `M` - Map | `C` - Screenshot
 - Arrow keys - Simulate movement (standalone mode)
 
 ---
