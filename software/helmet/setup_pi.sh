@@ -1,0 +1,469 @@
+#!/bin/bash
+#
+# WARLOCK Raspberry Pi Setup Script
+#
+# Automates installation and configuration of WARLOCK HMU on Raspberry Pi 5.
+# Run this script after flashing Raspberry Pi OS (Desktop or Lite).
+#
+# Usage:
+#   curl -fsSL https://raw.githubusercontent.com/preparedcitizencorps/warlock/master/software/helmet/setup_pi.sh | bash
+#   OR
+#   git clone https://github.com/preparedcitizencorps/warlock.git
+#   cd warlock/software/helmet
+#   chmod +x setup_pi.sh
+#   ./setup_pi.sh
+#
+
+set -e  # Exit on error
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Configuration
+REPO_URL="https://github.com/preparedcitizencorps/warlock.git"
+INSTALL_DIR="$HOME/warlock"
+PYTHON_VERSION="python3"
+
+# Helper functions
+print_header() {
+    echo -e "${BLUE}============================================================${NC}"
+    echo -e "${BLUE}$1${NC}"
+    echo -e "${BLUE}============================================================${NC}"
+}
+
+print_success() {
+    echo -e "${GREEN}✓ $1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠ $1${NC}"
+}
+
+print_error() {
+    echo -e "${RED}✗ $1${NC}"
+}
+
+print_info() {
+    echo -e "${BLUE}ℹ $1${NC}"
+}
+
+# Check if running on Raspberry Pi
+check_raspberry_pi() {
+    if ! grep -q "Raspberry Pi" /proc/cpuinfo 2>/dev/null; then
+        print_warning "This script is designed for Raspberry Pi. Continuing anyway..."
+    else
+        print_success "Raspberry Pi detected"
+    fi
+}
+
+# Check for sudo privileges
+check_sudo() {
+    if ! sudo -n true 2>/dev/null; then
+        print_info "This script requires sudo privileges. You may be prompted for your password."
+    fi
+}
+
+# Update system
+update_system() {
+    print_header "Updating System Packages"
+
+    sudo apt update
+    print_success "Package list updated"
+
+    print_info "Upgrading packages (this may take a while)..."
+    sudo apt upgrade -y
+    print_success "System packages upgraded"
+}
+
+# Install core dependencies
+install_core_dependencies() {
+    print_header "Installing Core Dependencies"
+
+    local packages=(
+        "python3"
+        "python3-pip"
+        "python3-opencv"
+        "python3-picamera2"  # Official Pi camera library
+        "git"
+        "libgl1"
+        "libglib2.0-0"
+    )
+
+    print_info "Installing: ${packages[*]}"
+    sudo apt install -y "${packages[@]}"
+    print_success "Core dependencies installed"
+}
+
+# Install DRM/KMS dependencies (for headless mode)
+install_drm_dependencies() {
+    print_header "Installing DRM/KMS Dependencies (Headless Mode)"
+
+    local packages=(
+        "python3-kms++"  # DRM/KMS display support
+        "python3-evdev"  # Keyboard input without X11
+    )
+
+    print_info "Installing: ${packages[*]}"
+    sudo apt install -y "${packages[@]}"
+    print_success "DRM/KMS dependencies installed"
+}
+
+# Configure user groups
+configure_user_groups() {
+    print_header "Configuring User Groups"
+
+    local current_user="$USER"
+    local groups_needed=("video" "input")
+    local groups_added=()
+
+    for group in "${groups_needed[@]}"; do
+        if ! groups "$current_user" | grep -q "\b$group\b"; then
+            sudo usermod -a -G "$group" "$current_user"
+            groups_added+=("$group")
+            print_success "Added user to '$group' group"
+        else
+            print_info "User already in '$group' group"
+        fi
+    done
+
+    if [ ${#groups_added[@]} -gt 0 ]; then
+        print_warning "Groups added: ${groups_added[*]}"
+        print_warning "You must logout/login or reboot for group changes to take effect!"
+    fi
+}
+
+# Setup udev rules for input devices
+setup_udev_rules() {
+    print_header "Setting Up udev Rules for Input Devices"
+
+    local rule_file="/etc/udev/rules.d/99-input.rules"
+    local rule_content='KERNEL=="event*", SUBSYSTEM=="input", MODE="0660", GROUP="input"'
+
+    if [ -f "$rule_file" ]; then
+        print_info "udev rule already exists: $rule_file"
+    else
+        echo "$rule_content" | sudo tee "$rule_file" > /dev/null
+        print_success "Created udev rule: $rule_file"
+
+        sudo udevadm control --reload-rules
+        sudo udevadm trigger
+        print_success "Reloaded udev rules"
+    fi
+}
+
+# Clone or update repository
+setup_repository() {
+    print_header "Setting Up WARLOCK Repository"
+
+    if [ -d "$INSTALL_DIR" ]; then
+        print_info "Repository already exists at $INSTALL_DIR"
+        print_info "Updating repository..."
+        cd "$INSTALL_DIR"
+        git pull origin master
+        print_success "Repository updated"
+    else
+        print_info "Cloning repository to $INSTALL_DIR..."
+        git clone "$REPO_URL" "$INSTALL_DIR"
+        print_success "Repository cloned"
+    fi
+}
+
+# Install Python dependencies
+install_python_dependencies() {
+    print_header "Installing Python Dependencies"
+
+    cd "$INSTALL_DIR/software"
+
+    # Install helmet requirements
+    if [ -f "helmet/requirements.txt" ]; then
+        print_info "Installing helmet dependencies..."
+        pip3 install -r helmet/requirements.txt --break-system-packages
+        print_success "Helmet dependencies installed"
+    fi
+
+    # Install body requirements
+    if [ -f "body/requirements.txt" ]; then
+        print_info "Installing body dependencies..."
+        pip3 install -r body/requirements.txt --break-system-packages
+        print_success "Body dependencies installed"
+    fi
+
+    # Install common requirements
+    if [ -f "requirements.txt" ]; then
+        print_info "Installing common dependencies..."
+        pip3 install -r requirements.txt --break-system-packages
+        print_success "Common dependencies installed"
+    fi
+}
+
+# Configure camera
+configure_camera() {
+    print_header "Configuring Camera"
+
+    local config_file="/boot/firmware/config.txt"
+
+    if [ ! -f "$config_file" ]; then
+        print_warning "Config file not found: $config_file"
+        print_warning "Camera configuration may need manual setup"
+        return
+    fi
+
+    # Check if camera is already configured
+    if grep -q "^dtoverlay=imx462" "$config_file"; then
+        print_info "Camera overlay already configured"
+    else
+        print_info "Camera will use auto-detection by default"
+        print_info "If you have issues, you may need to manually add camera overlay:"
+        print_info "  sudo nano $config_file"
+        print_info "  Add: dtoverlay=imx462  (or your camera model)"
+    fi
+
+    print_success "Camera configuration checked"
+}
+
+# Create convenience scripts
+create_convenience_scripts() {
+    print_header "Creating Convenience Scripts"
+
+    # HMU launcher script
+    local hmu_script="$INSTALL_DIR/run_hmu.sh"
+    cat > "$hmu_script" << 'EOF'
+#!/bin/bash
+# Quick launcher for WARLOCK Helmet-Mounted Unit
+
+cd "$(dirname "$0")/software"
+
+# Parse arguments
+USE_DRM=0
+STANDALONE=0
+
+for arg in "$@"; do
+    case $arg in
+        --drm|--headless)
+            USE_DRM=1
+            shift
+            ;;
+        --standalone)
+            STANDALONE=1
+            shift
+            ;;
+        --help|-h)
+            echo "WARLOCK HMU Launcher"
+            echo ""
+            echo "Usage: ./run_hmu.sh [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --drm, --headless    Use DRM/KMS display (headless mode)"
+            echo "  --standalone         Run without BMU connection"
+            echo "  --help, -h           Show this help message"
+            exit 0
+            ;;
+    esac
+done
+
+# Build command
+CMD="python3 helmet/helmet_main.py"
+
+if [ $STANDALONE -eq 1 ]; then
+    CMD="$CMD --standalone"
+fi
+
+if [ $USE_DRM -eq 1 ]; then
+    CMD="$CMD --use-drm"
+fi
+
+# Run
+echo "Starting WARLOCK HMU..."
+echo "Command: $CMD"
+echo ""
+$CMD
+EOF
+    chmod +x "$hmu_script"
+    print_success "Created HMU launcher: $hmu_script"
+
+    # BMU launcher script
+    local bmu_script="$INSTALL_DIR/run_bmu.sh"
+    cat > "$bmu_script" << 'EOF'
+#!/bin/bash
+# Quick launcher for WARLOCK Body-Mounted Unit
+
+cd "$(dirname "$0")/software"
+
+echo "Starting WARLOCK BMU..."
+python3 body/body_main.py "$@"
+EOF
+    chmod +x "$bmu_script"
+    print_success "Created BMU launcher: $bmu_script"
+}
+
+# Create systemd service (optional)
+create_systemd_service() {
+    print_header "Creating Systemd Service (Optional)"
+
+    print_info "Would you like to create a systemd service to auto-start WARLOCK on boot?"
+    print_info "This will run WARLOCK HMU in DRM mode at startup."
+    echo -n "Create service? [y/N]: "
+    read -r response
+
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+        local service_file="/etc/systemd/system/warlock-hmu.service"
+
+        sudo tee "$service_file" > /dev/null << EOF
+[Unit]
+Description=WARLOCK Helmet-Mounted Unit
+After=network.target
+
+[Service]
+Type=simple
+User=$USER
+WorkingDirectory=$INSTALL_DIR/software
+Environment="WARLOCK_USE_DRM=1"
+ExecStart=/usr/bin/python3 helmet/helmet_main.py --standalone
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+        sudo systemctl daemon-reload
+        print_success "Created systemd service: $service_file"
+        print_info "To enable auto-start: sudo systemctl enable warlock-hmu"
+        print_info "To start now: sudo systemctl start warlock-hmu"
+        print_info "To view logs: sudo journalctl -u warlock-hmu -f"
+    else
+        print_info "Skipping systemd service creation"
+    fi
+}
+
+# Test installation
+test_installation() {
+    print_header "Testing Installation"
+
+    cd "$INSTALL_DIR/software"
+
+    # Test Python imports
+    print_info "Testing Python imports..."
+    if $PYTHON_VERSION -c "import cv2; import numpy; import yaml" 2>/dev/null; then
+        print_success "Core Python imports working"
+    else
+        print_error "Python import test failed"
+        return 1
+    fi
+
+    # Test picamera2 (may not be available on all systems)
+    if $PYTHON_VERSION -c "from picamera2 import Picamera2" 2>/dev/null; then
+        print_success "Picamera2 available"
+    else
+        print_warning "Picamera2 not available (may need reboot or is not Raspberry Pi)"
+    fi
+
+    # Test evdev
+    if $PYTHON_VERSION -c "import evdev" 2>/dev/null; then
+        print_success "evdev available"
+    else
+        print_warning "evdev not available"
+    fi
+
+    # Check camera detection
+    print_info "Checking camera detection..."
+    if command -v rpicam-hello &> /dev/null; then
+        if rpicam-hello --list-cameras 2>&1 | grep -q "Available cameras"; then
+            print_success "Camera detected"
+        else
+            print_warning "No camera detected (may need camera connected or enabled)"
+        fi
+    else
+        print_info "rpicam-hello not available (old Pi OS version?)"
+    fi
+}
+
+# Print completion summary
+print_completion_summary() {
+    print_header "Installation Complete!"
+
+    echo ""
+    print_success "WARLOCK has been installed to: $INSTALL_DIR"
+    echo ""
+    echo -e "${BLUE}Quick Start:${NC}"
+    echo "  1. Test with X11 (if using desktop or SSH with X forwarding):"
+    echo "     cd $INSTALL_DIR"
+    echo "     ./run_hmu.sh --standalone"
+    echo ""
+    echo "  2. Test with DRM (headless mode, requires console or VT):"
+    echo "     cd $INSTALL_DIR"
+    echo "     ./run_hmu.sh --drm --standalone"
+    echo ""
+    echo -e "${BLUE}Controls:${NC}"
+    echo "  Q - Quit | H - Help | P - Plugin panel"
+    echo "  Y - YOLO toggle | F - FPS | M - Map"
+    echo ""
+
+    # Check if reboot needed
+    if groups "$USER" | grep -q video && groups "$USER" | grep -q input; then
+        print_info "All group memberships active"
+    else
+        print_warning "Group changes require logout/login or reboot to take effect!"
+        echo ""
+        echo -n "Reboot now? [y/N]: "
+        read -r response
+        if [[ "$response" =~ ^[Yy]$ ]]; then
+            print_info "Rebooting in 5 seconds... (Ctrl+C to cancel)"
+            sleep 5
+            sudo reboot
+        fi
+    fi
+
+    echo ""
+    print_info "Documentation: https://github.com/preparedcitizencorps/warlock"
+    print_info "Discord: https://discord.gg/uFMEug4Bb9"
+    echo ""
+}
+
+# Main installation flow
+main() {
+    print_header "WARLOCK Raspberry Pi Setup"
+
+    check_raspberry_pi
+    check_sudo
+
+    echo ""
+    print_info "This script will:"
+    echo "  • Update system packages"
+    echo "  • Install dependencies (OpenCV, picamera2, etc.)"
+    echo "  • Configure user groups and permissions"
+    echo "  • Clone/update WARLOCK repository"
+    echo "  • Install Python dependencies"
+    echo "  • Create launcher scripts"
+    echo ""
+    echo -n "Continue? [Y/n]: "
+    read -r response
+
+    if [[ "$response" =~ ^[Nn]$ ]]; then
+        print_info "Installation cancelled"
+        exit 0
+    fi
+
+    # Run installation steps
+    update_system
+    install_core_dependencies
+    install_drm_dependencies
+    configure_user_groups
+    setup_udev_rules
+    setup_repository
+    install_python_dependencies
+    configure_camera
+    create_convenience_scripts
+    create_systemd_service
+    test_installation
+
+    # Done!
+    print_completion_summary
+}
+
+# Run main function
+main "$@"

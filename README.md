@@ -55,6 +55,28 @@ Press `H` for help, `Q` to quit. YOLO will auto-download on first run (~50MB).
 
 **Installation:**
 
+**Option A: Automated Setup (Recommended)**
+
+```bash
+# One-line installer - handles everything automatically
+curl -fsSL https://raw.githubusercontent.com/preparedcitizencorps/warlock/master/software/helmet/setup_pi.sh | bash
+
+# OR if you already cloned the repo:
+git clone https://github.com/preparedcitizencorps/warlock.git
+cd warlock/software/helmet
+chmod +x setup_pi.sh
+./setup_pi.sh
+```
+
+The script will:
+- Install all dependencies (OpenCV, picamera2, evdev, etc.)
+- Configure user groups and permissions
+- Set up camera and DRM/KMS support
+- Create launcher scripts (`./run_hmu.sh`, `./run_bmu.sh`)
+- Optional: Create systemd service for auto-start
+
+**Option B: Manual Setup**
+
 ```bash
 # 1. Flash Pi OS with Raspberry Pi Imager
 # 2. SSH in and update
@@ -62,21 +84,22 @@ ssh pi@raspberrypi.local
 sudo apt update && sudo apt upgrade -y
 
 # 3. Install dependencies
-sudo apt install -y python3-pip python3-opencv git libgl1 libglib2.0-0
+sudo apt install -y python3-pip python3-opencv python3-picamera2 git libgl1 libglib2.0-0
 
-# 4. Clone and install
+# 4. For headless mode (DRM/KMS):
+sudo apt install -y python3-kms++ python3-evdev
+sudo usermod -a -G video,input $USER
+
+# 5. Clone and install
 git clone https://github.com/preparedcitizencorps/warlock.git
 cd warlock/software
 pip3 install -r helmet/requirements.txt --break-system-packages
 
-# 5. Run WARLOCK
+# 6. Run WARLOCK
 # On Desktop OS:
 python3 helmet/helmet_main.py --standalone
 
 # On Lite OS (headless):
-sudo apt install -y python3-kms++
-sudo usermod -a -G video,input $USER
-# Logout/login, then:
 WARLOCK_USE_DRM=1 python3 helmet/helmet_main.py --standalone
 ```
 
