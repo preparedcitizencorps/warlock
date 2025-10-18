@@ -35,7 +35,7 @@ class Picamera2Adapter:
             return False, None
 
     def set(self, prop, value):
-        return True
+        return False
 
     def get(self, prop):
         return -1

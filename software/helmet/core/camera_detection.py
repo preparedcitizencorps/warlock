@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Auto-detection for USB, CSI, Arducam Native, and Arducam PiVariety cameras."""
 
+import glob
 import logging
+import re
 import subprocess
 from typing import Optional, Tuple
 
@@ -47,28 +49,26 @@ def detect_picamera2_cameras() -> Optional[list]:
 def detect_v4l2_cameras() -> list:
     devices = []
     try:
-        result = subprocess.run(["ls", "-1", "/dev/video*"], capture_output=True, text=True, check=False)
-        if result.returncode == 0:
-            potential_devices = result.stdout.strip().split("\n")
+        potential_devices = sorted(glob.glob("/dev/video*"))
 
-            for device in potential_devices:
-                try:
-                    cap_result = subprocess.run(
-                        ["v4l2-ctl", "--device", device, "--all"],
-                        capture_output=True,
-                        text=True,
-                        check=False,
-                        timeout=1,
-                    )
-                    if "Video Capture" in cap_result.stdout:
-                        devices.append(device)
-                        logger.debug(f"Found V4L2 capture device: {device}")
-                except (subprocess.TimeoutExpired, FileNotFoundError):
-                    cap = cv2.VideoCapture(device)
-                    if cap.isOpened():
-                        devices.append(device)
-                        cap.release()
-                        logger.debug(f"Found OpenCV capture device: {device}")
+        for device in potential_devices:
+            try:
+                cap_result = subprocess.run(
+                    ["v4l2-ctl", "--device", device, "--all"],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    timeout=1,
+                )
+                if "Video Capture" in cap_result.stdout:
+                    devices.append(device)
+                    logger.debug(f"Found V4L2 capture device: {device}")
+            except (subprocess.TimeoutExpired, FileNotFoundError):
+                cap = cv2.VideoCapture(device)
+                if cap.isOpened():
+                    devices.append(device)
+                    cap.release()
+                    logger.debug(f"Found OpenCV capture device: {device}")
     except Exception as e:
         logger.debug(f"V4L2 detection failed: {e}")
 
@@ -109,7 +109,8 @@ def detect_cameras() -> list:
     if v4l2_devices:
         logger.info(f"Detected {len(v4l2_devices)} V4L2/USB camera device(s)")
         for idx, device in enumerate(v4l2_devices):
-            camera_num = idx if not detected_cameras else idx + 10
+            match = re.search(r"(\d+)$", device)
+            camera_num = int(match.group(1)) if match else idx
             detected_cameras.append(CameraInfo("usb", f"V4L2 {device}", camera_num))
 
     return detected_cameras
