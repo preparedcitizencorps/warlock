@@ -102,14 +102,24 @@ class HMUApplication:
 
         # Initialize camera
         logger.info("Initializing camera...")
-        cap = cv2.VideoCapture(0)
+        # Try V4L2 backend first (works with Pi camera on Pi 5)
+        cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
         if not cap.isOpened():
-            raise RuntimeError("Could not open camera")
+            # Fallback to default backend
+            logger.warning("V4L2 backend failed, trying default backend...")
+            cap = cv2.VideoCapture(0)
+            if not cap.isOpened():
+                raise RuntimeError("Could not open camera")
 
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.DEFAULT_FRAME_WIDTH)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.DEFAULT_FRAME_HEIGHT)
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         cap.set(cv2.CAP_PROP_FPS, 30)
+
+        # Verify camera is actually working
+        ret, test_frame = cap.read()
+        if not ret or test_frame is None:
+            raise RuntimeError("Camera opened but failed to read frames")
 
         self.camera = CameraController(cap)
         self.context.state["camera_handle"] = self.camera
