@@ -100,58 +100,18 @@ class HMUApplication:
             logger.error(f"Plugin loading failed: {e}")
             raise
 
-        # Initialize camera
-        logger.info("Initializing camera...")
-        cap = None
+        # Initialize camera with automatic detection
+        logger.info("Detecting and initializing camera...")
+        from helmet.core.camera_detection import initialize_camera
 
-        # Try picamera2 first (for Raspberry Pi cameras)
         try:
-            from helmet.core.picamera2_adapter import Picamera2Adapter
-
-            cap = Picamera2Adapter(0, self.DEFAULT_FRAME_WIDTH, self.DEFAULT_FRAME_HEIGHT)
-            logger.info("Using Picamera2 for Raspberry Pi camera")
-
-            # Verify camera works
-            ret, test_frame = cap.read()
-            if not ret or test_frame is None:
-                raise RuntimeError("Picamera2 opened but failed to read frames")
-            logger.info(f"Picamera2 camera initialized: {test_frame.shape}")
-
-        except ImportError:
-            logger.info("Picamera2 not available, trying OpenCV VideoCapture...")
-        except Exception as e:
-            logger.warning(f"Picamera2 failed: {e}, falling back to OpenCV...")
-            cap = None
-
-        # Fallback to OpenCV VideoCapture (for USB cameras, desktop testing)
-        if cap is None:
-            # Try V4L2 backend first
-            cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
-            if not cap.isOpened():
-                logger.warning("V4L2 backend failed, trying default backend...")
-                cap = cv2.VideoCapture(0)
-                if not cap.isOpened():
-                    raise RuntimeError("Could not open camera")
-
-            # Set pixel format to BGR3 (24-bit BGR) which OpenCV expects
-            cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"BGR3"))
-            cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.DEFAULT_FRAME_WIDTH)
-            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.DEFAULT_FRAME_HEIGHT)
-            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-            cap.set(cv2.CAP_PROP_FPS, 30)
-
-            # Verify camera is actually working
-            logger.info("Testing camera frame capture...")
-            ret, test_frame = cap.read()
-            if not ret or test_frame is None:
-                # Try with YUYV format as fallback
-                logger.warning("BGR3 failed, trying YUYV format...")
-                cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"YUYV"))
-                ret, test_frame = cap.read()
-                if not ret or test_frame is None:
-                    raise RuntimeError("Camera opened but failed to read frames")
-
-            logger.info(f"OpenCV camera initialized: {test_frame.shape}")
+            cap, camera_info = initialize_camera(
+                width=self.DEFAULT_FRAME_WIDTH, height=self.DEFAULT_FRAME_HEIGHT, prefer_csi=True
+            )
+            logger.info(f"Camera initialized: {camera_info}")
+        except RuntimeError as e:
+            logger.error(f"Camera initialization failed: {e}")
+            raise
 
         self.camera = CameraController(cap)
         self.context.state["camera_handle"] = self.camera

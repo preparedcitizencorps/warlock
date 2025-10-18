@@ -62,7 +62,16 @@ class Picamera2Adapter:
         """
         # Picamera2 doesn't use the same property system as OpenCV
         # Configuration is done at init time
-        pass
+        return True
+
+    def get(self, prop):
+        """Get camera property (compatibility with cv2.VideoCapture).
+
+        Returns dummy values for compatibility since picamera2 doesn't expose
+        properties the same way as OpenCV.
+        """
+        # Return -1 (OpenCV convention for unsupported property)
+        return -1
 
     def release(self):
         """Release the camera"""
