@@ -222,8 +222,35 @@ install_arducam_pivariety() {
 
     print_info "Downloading Arducam installation script..."
     cd "$HOME"
-    wget -O install_pivariety_pkgs.sh https://github.com/ArduCAM/Arducam-Pivariety-V4L2-Driver/releases/download/install_script/install_pivariety_pkgs.sh
-    chmod +x install_pivariety_pkgs.sh
+
+    local SCRIPT_URL="https://github.com/ArduCAM/Arducam-Pivariety-V4L2-Driver/releases/download/install_script/install_pivariety_pkgs.sh"
+    local SCRIPT_FILE="install_pivariety_pkgs.sh"
+    local EXPECTED_SHA="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
+    if ! wget --timeout=30 -O "$SCRIPT_FILE" "$SCRIPT_URL"; then
+        print_error "Failed to download Arducam installation script"
+        return 1
+    fi
+
+    local ACTUAL_SHA
+    ACTUAL_SHA=$(sha256sum "$SCRIPT_FILE" | awk '{print $1}')
+    print_info "Downloaded script SHA256: $ACTUAL_SHA"
+
+    if [ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]; then
+        print_warning "SHA256 mismatch detected - script may have been updated"
+        print_info "Expected: $EXPECTED_SHA"
+        print_info "Actual:   $ACTUAL_SHA"
+        print_info "Visit https://github.com/ArduCAM/Arducam-Pivariety-V4L2-Driver to verify"
+        echo -n "Continue anyway? [y/N]: "
+        read -r continue_response
+        if [[ ! "$continue_response" =~ ^[Yy]$ ]]; then
+            print_error "Installation aborted due to SHA256 mismatch"
+            rm -f "$SCRIPT_FILE"
+            return 1
+        fi
+    fi
+
+    chmod +x "$SCRIPT_FILE"
     print_success "Downloaded installation script"
 
     print_info "Installing Arducam libcamera (this may take a few minutes)..."
@@ -237,17 +264,27 @@ install_arducam_pivariety() {
     # Configure camera overlay
     local config_file="/boot/firmware/config.txt"
     if [ -f "$config_file" ]; then
-        if ! grep -q "^dtoverlay=arducam-pivariety" "$config_file"; then
+        if ! grep -qE '^[[:space:]]*dtoverlay=arducam-pivariety' "$config_file"; then
             print_info "Configuring camera overlay in $config_file..."
 
             # Find [all] section and add overlay
-            if grep -q "^\[all\]" "$config_file"; then
-                sudo sed -i '/^\[all\]/a dtoverlay=arducam-pivariety' "$config_file"
+            if grep -qE '^[[:space:]]*\[all\]' "$config_file"; then
+                sudo sed -i '/^[[:space:]]*\[all\]/a dtoverlay=arducam-pivariety' "$config_file"
+
+                if ! grep -qE '^[[:space:]]*dtoverlay=arducam-pivariety' "$config_file"; then
+                    print_error "Failed to add dtoverlay to config.txt"
+                    return 1
+                fi
                 print_success "Added dtoverlay=arducam-pivariety to config.txt"
             else
                 echo "" | sudo tee -a "$config_file" > /dev/null
                 echo "[all]" | sudo tee -a "$config_file" > /dev/null
                 echo "dtoverlay=arducam-pivariety" | sudo tee -a "$config_file" > /dev/null
+
+                if ! grep -qE '^[[:space:]]*dtoverlay=arducam-pivariety' "$config_file"; then
+                    print_error "Failed to add dtoverlay to config.txt"
+                    return 1
+                fi
                 print_success "Added [all] section and dtoverlay=arducam-pivariety to config.txt"
             fi
 
