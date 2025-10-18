@@ -57,7 +57,10 @@ cd warlock/software
 ### 5. Install Python Dependencies
 
 ```bash
-pip3 install -r helmet/requirements.txt
+pip3 install -r helmet/requirements.txt --break-system-packages
+
+# Install YOLO tracking dependencies (required for object tracking)
+pip3 install --break-system-packages "lap>=0.5.12"
 ```
 
 ### 6. Install Hailo AI Kit
@@ -97,9 +100,33 @@ sudo nano /etc/dhcpcd.conf
 
 ### 8. Test Camera
 
+For **CSI cameras** (IMX462, etc.):
+```bash
+# Check if camera is detected
+rpicam-hello --list-cameras
+
+# If not detected, check config.txt
+sudo nano /boot/firmware/config.txt
+# Add: dtoverlay=imx462  (or your camera model)
+# Comment out: #camera_auto_detect=1
+sudo reboot
+```
+
+For **USB cameras**:
+```bash
+# List video devices
+ls /dev/video*
+
+# Check device info
+v4l2-ctl --list-devices
+```
+
+Test camera capture:
 ```bash
 python3 -c "import cv2; cap = cv2.VideoCapture(0); print('Camera OK' if cap.isOpened() else 'Camera FAIL')"
 ```
+
+**Note:** Raspberry Pi 5 uses picamera2 for CSI cameras. USB cameras use OpenCV VideoCapture. WARLOCK automatically detects and uses the appropriate method.
 
 ### 9. Copy YOLO Model
 
@@ -156,11 +183,49 @@ sudo systemctl status warlock-hmu
 
 ## Troubleshooting
 
-**Camera not detected:**
+**CSI Camera not detected:**
+
+```bash
+# Check if camera is detected by libcamera
+rpicam-hello --list-cameras
+
+# If "No cameras available":
+# 1. Check ribbon cable connection (blue tab orientation)
+# 2. Check /boot/firmware/config.txt for camera settings
+# 3. Try manual overlay:
+sudo nano /boot/firmware/config.txt
+# Add: dtoverlay=imx462
+# Comment: #camera_auto_detect=1
+sudo reboot
+```
+
+**CSI Camera I2C errors (Error -121):**
+
+```bash
+# Check kernel messages
+sudo dmesg | grep -i 'imx\|csi\|camera'
+
+# If you see "Error writing reg 0x303a: -121":
+# - This indicates faulty camera hardware or loose cable
+# - Try reseating the ribbon cable at both ends
+# - Test with a different camera
+# - Use USB camera as alternative
+```
+
+**USB Camera not detected:**
 
 ```bash
 ls /dev/video*
-# If empty, check camera connection
+# Should show /dev/video8 or similar
+
+# Check device info
+v4l2-ctl --list-devices
+```
+
+**YOLO "No module named 'lap'" error:**
+
+```bash
+pip3 install --break-system-packages "lap>=0.5.12"
 ```
 
 **Hailo not working:**

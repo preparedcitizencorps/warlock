@@ -198,6 +198,11 @@ install_python_dependencies() {
         pip3 install -r requirements.txt --break-system-packages
         print_success "Common dependencies installed"
     fi
+
+    # Install YOLO-specific dependencies that ultralytics may miss
+    print_info "Installing YOLO tracking dependencies..."
+    pip3 install --break-system-packages "lap>=0.5.12"
+    print_success "YOLO tracking dependencies installed"
 }
 
 # Configure camera
