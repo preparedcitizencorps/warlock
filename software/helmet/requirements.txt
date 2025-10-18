@@ -13,6 +13,11 @@ pyyaml>=6.0
 # HTTP for map tile downloads
 requests>=2.31.0
 
+# DRM/KMS display and evdev input (for headless mode)
+# Note: python3-kms++ must be installed via apt (not pip)
+# Install with: sudo apt install python3-kms++
+evdev>=1.6.0  # Keyboard input without X11
+
 # Optional: Hailo AI accelerator support (when hardware available)
 # hailo-platform  # Install from Hailo SDK
 

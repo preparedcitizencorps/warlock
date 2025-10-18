@@ -7,9 +7,15 @@ This unit handles:
 - AI object detection (YOLO on Hailo)
 - HUD rendering and display
 - Communication with Body-Mounted Unit (BMU) for GPS, team data, alerts
+
+Display Modes:
+- X11 mode (default): Uses cv2.imshow() - requires desktop or X11 forwarding
+- DRM mode: Direct display via DRM/KMS - headless operation without X11
+  Enable with: WARLOCK_USE_DRM=1 or --use-drm flag
 """
 
 import logging
+import os
 import sys
 import time
 from pathlib import Path
@@ -35,21 +41,27 @@ class HMUApplication:
     DEFAULT_FRAME_WIDTH = 1280
     DEFAULT_FRAME_HEIGHT = 720
 
-    def __init__(self, config_path: str = None, network_enabled: bool = True):
+    def __init__(self, config_path: str = None, network_enabled: bool = True, use_drm: bool = False):
         """Initialize HMU application.
 
         Args:
             config_path: Path to helmet_config.yaml
             network_enabled: Connect to BMU if True, standalone mode if False
+            use_drm: Use DRM/KMS display (headless) instead of X11/cv2.imshow
         """
         self.config_path = config_path or str(Path(__file__).parent / "helmet_config.yaml")
         self.network_enabled = network_enabled
+        self.use_drm = use_drm
 
         self.context = None
         self.plugin_manager = None
         self.camera = None
         self.network_client = None
         self.input_manager = None
+
+        # Display and input backends
+        self.display = None
+        self.keyboard = None
 
         self.show_help = False
         self.running = False
@@ -101,6 +113,23 @@ class HMUApplication:
 
         self.camera = CameraController(cap)
         self.context.state["camera_handle"] = self.camera
+
+        # Initialize display backend (DRM or X11)
+        if self.use_drm:
+            logger.info("Initializing DRM/KMS display (headless mode)...")
+            try:
+                from helmet.core.drm_display import DRMDisplay
+                from helmet.core.evdev_input import EvdevKeyboard
+
+                self.display = DRMDisplay(self.DEFAULT_FRAME_WIDTH, self.DEFAULT_FRAME_HEIGHT)
+                self.keyboard = EvdevKeyboard(auto_grab=True)
+                logger.info("DRM display mode active")
+            except Exception as e:
+                logger.error(f"Failed to initialize DRM display: {e}")
+                logger.error("Falling back to X11 mode (cv2.imshow)")
+                self.use_drm = False
+        else:
+            logger.info("Using X11 display mode (cv2.imshow)")
 
         if self.network_enabled:
             logger.info("Connecting to BMU...")
@@ -211,9 +240,19 @@ class HMUApplication:
 
             frame = self.plugin_manager.render(frame)
 
-            cv2.imshow("WARLOCK HMU", frame)
+            # Display frame (DRM or X11)
+            if self.use_drm:
+                self.display.show(frame)
+            else:
+                cv2.imshow("WARLOCK HMU", frame)
 
-            key = cv2.waitKey(1) & 0xFF
+            # Read keyboard input (evdev or cv2.waitKey)
+            if self.use_drm:
+                key = self.keyboard.read_key(timeout=0.001)  # 1ms timeout
+                if key is None:
+                    key = 0xFF  # No key pressed
+            else:
+                key = cv2.waitKey(1) & 0xFF
 
             key_handled = self.plugin_manager.handle_key(key)
 
@@ -243,7 +282,14 @@ class HMUApplication:
         if self.network_client:
             self.network_client.stop()
 
-        cv2.destroyAllWindows()
+        # Cleanup display backend
+        if self.use_drm:
+            if self.display:
+                self.display.cleanup()
+            if self.keyboard:
+                self.keyboard.cleanup()
+        else:
+            cv2.destroyAllWindows()
 
         logger.info("=" * 60)
         logger.info("HMU Shutdown Complete")
@@ -257,9 +303,18 @@ def main():
     parser = argparse.ArgumentParser(description="WARLOCK Helmet-Mounted Unit")
     parser.add_argument("--config", type=str, help="Path to helmet_config.yaml")
     parser.add_argument("--standalone", action="store_true", help="Run without BMU connection")
+    parser.add_argument(
+        "--use-drm", action="store_true", help="Use DRM/KMS display (headless mode) instead of X11/cv2.imshow"
+    )
     args = parser.parse_args()
 
-    app = HMUApplication(config_path=args.config, network_enabled=not args.standalone)
+    # Check environment variable for DRM mode (can override command line)
+    use_drm = args.use_drm or os.environ.get("WARLOCK_USE_DRM", "0") == "1"
+
+    if use_drm:
+        logger.info("DRM mode requested - will run in headless mode")
+
+    app = HMUApplication(config_path=args.config, network_enabled=not args.standalone, use_drm=use_drm)
 
     try:
         app.initialize()
