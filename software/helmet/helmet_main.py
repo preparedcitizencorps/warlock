@@ -111,15 +111,25 @@ class HMUApplication:
             if not cap.isOpened():
                 raise RuntimeError("Could not open camera")
 
+        # Set pixel format to BGR3 (24-bit BGR) which OpenCV expects
+        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"BGR3"))
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.DEFAULT_FRAME_WIDTH)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.DEFAULT_FRAME_HEIGHT)
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         cap.set(cv2.CAP_PROP_FPS, 30)
 
         # Verify camera is actually working
+        logger.info("Testing camera frame capture...")
         ret, test_frame = cap.read()
         if not ret or test_frame is None:
-            raise RuntimeError("Camera opened but failed to read frames")
+            # Try with YUYV format as fallback
+            logger.warning("BGR3 failed, trying YUYV format...")
+            cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"YUYV"))
+            ret, test_frame = cap.read()
+            if not ret or test_frame is None:
+                raise RuntimeError("Camera opened but failed to read frames")
+
+        logger.info(f"Camera initialized: {test_frame.shape}")
 
         self.camera = CameraController(cap)
         self.context.state["camera_handle"] = self.camera
