@@ -8,11 +8,6 @@ import cv2
 
 
 class CameraController:
-    """
-    Thread-safe wrapper around OpenCV VideoCapture that exposes only safe camera operations.
-    Prevents plugins from accidentally releasing the camera or calling destructive methods.
-    """
-
     WHITELISTED_PROPERTIES = frozenset(
         {
             cv2.CAP_PROP_EXPOSURE,
@@ -54,7 +49,6 @@ class CameraController:
         self._lock = threading.Lock()
 
     def set_exposure(self, value: float) -> bool:
-        """Set camera exposure with range validation."""
         if not self.EXPOSURE_MIN <= value <= self.EXPOSURE_MAX:
             return False
 
@@ -62,13 +56,11 @@ class CameraController:
             return self._capture.set(cv2.CAP_PROP_EXPOSURE, value)
 
     def get_exposure(self) -> Optional[float]:
-        """Get current camera exposure."""
         with self._lock:
             value = self._capture.get(cv2.CAP_PROP_EXPOSURE)
             return value if value != -1 else None
 
     def set_gain(self, value: float) -> bool:
-        """Set camera gain with range validation."""
         if not self.GAIN_MIN <= value <= self.GAIN_MAX:
             return False
 
@@ -76,13 +68,11 @@ class CameraController:
             return self._capture.set(cv2.CAP_PROP_GAIN, value)
 
     def get_gain(self) -> Optional[float]:
-        """Get current camera gain."""
         with self._lock:
             value = self._capture.get(cv2.CAP_PROP_GAIN)
             return value if value != -1 else None
 
     def set_brightness(self, value: float) -> bool:
-        """Set camera brightness with range validation."""
         if not self.BRIGHTNESS_MIN <= value <= self.BRIGHTNESS_MAX:
             return False
 
@@ -90,16 +80,11 @@ class CameraController:
             return self._capture.set(cv2.CAP_PROP_BRIGHTNESS, value)
 
     def get_brightness(self) -> Optional[float]:
-        """Get current camera brightness."""
         with self._lock:
             value = self._capture.get(cv2.CAP_PROP_BRIGHTNESS)
             return value if value != -1 else None
 
     def set_property(self, prop_id: int, value: float) -> bool:
-        """
-        Set camera property with whitelist and range validation.
-        Only allows setting properties that are safe for plugin access.
-        """
         if prop_id not in self.WHITELISTED_PROPERTIES:
             return False
 
@@ -112,7 +97,6 @@ class CameraController:
             return self._capture.set(prop_id, value)
 
     def get_property(self, prop_id: int) -> Optional[float]:
-        """Get camera property value."""
         if prop_id not in self.WHITELISTED_PROPERTIES:
             return None
 
@@ -121,16 +105,10 @@ class CameraController:
             return value if value != -1 else None
 
     def read_frame(self) -> Tuple[bool, Optional[any]]:
-        """Read a frame from the camera.
-
-        Returns:
-            Tuple of (success, frame) where success is bool and frame is numpy array or None
-        """
         with self._lock:
             return self._capture.read()
 
     def release(self):
-        """Release the camera resources."""
         with self._lock:
             if self._capture is not None:
                 self._capture.release()
