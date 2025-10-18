@@ -1,52 +1,60 @@
-# Helmet-Mounted Unit (HMU) Installation
+# HMU DEPLOYMENT MANUAL
 
-Instructions for deploying the HMU to a Raspberry Pi 5.
+**WARLOCK Helmet-Mounted Unit - Field Installation Procedures**
 
-## Hardware Requirements
+---
 
-- Raspberry Pi 5 (8GB recommended)
-- Raspberry Pi AI Kit (Hailo-8L) or standalone Hailo-8L
-- Low-light camera (IMX462 recommended)
-- BNO085 IMU module
-- U-blox NEO-M9N GPS module (backup)
-- MicroSD card (64GB+)
-- Power supply (5V @ 4A)
+## MISSION PARAMETERS
 
-## Software Installation
+**Platform:** Raspberry Pi 5 (8GB recommended)
+**Camera:** Auto-detected (USB/CSI/Arducam)
+**Accelerator:** Hailo-8L AI Kit (optional)
+**Storage:** 64GB+ MicroSD
+**Power:** 5V @ 4A
 
-### 1. Flash Raspberry Pi OS
+---
+
+## SECTION 1: SYSTEM PREP
+
+### 1.1 Flash Base OS
 
 ```bash
-# Use Raspberry Pi Imager
-# OS: Raspberry Pi OS (64-bit, Bookworm or later)
-# Enable SSH, set hostname to 'warlock-hmu'
+# Raspberry Pi Imager
+# OS: Raspberry Pi OS 64-bit (Bookworm or later)
+# Configure: SSH enabled, hostname 'warlock-hmu'
 ```
 
-### 2. Initial Setup
+### 1.2 Initial Access
 
 ```bash
 ssh pi@warlock-hmu.local
-
-# Update system
 sudo apt update && sudo apt upgrade -y
-
-# Install system dependencies
-sudo apt install -y \
-    python3-pip \
-    python3-opencv \
-    git \
-    i2c-tools
 ```
 
-### 3. Enable I2C (for IMU)
+### 1.3 Core Dependencies
 
 ```bash
-sudo raspi-config
-# Interface Options → I2C → Enable
-sudo reboot
+sudo apt install -y python3-pip python3-opencv python3-picamera2 git libgl1 libglib2.0-0 v4l-utils
+
+# Headless mode (DRM/KMS)
+sudo apt install -y python3-kms++ python3-evdev
+sudo usermod -a -G video,input $USER
 ```
 
-### 4. Clone Repository
+Logout/login required for group changes.
+
+### 1.4 Input Device Permissions
+
+```bash
+echo 'KERNEL=="event*", SUBSYSTEM=="input", MODE="0660", GROUP="input"' | sudo tee /etc/udev/rules.d/99-input.rules
+sudo udevadm control --reload-rules && sudo udevadm trigger
+```
+
+---
+
+## SECTION 2: WARLOCK INSTALLATION
+
+### 2.1 Clone Repository
 
 ```bash
 cd ~
@@ -54,195 +62,182 @@ git clone https://github.com/preparedcitizencorps/warlock.git
 cd warlock/software
 ```
 
-### 5. Install Python Dependencies
+### 2.2 Python Dependencies
 
 ```bash
 pip3 install -r helmet/requirements.txt --break-system-packages
-
-# Install YOLO tracking dependencies (required for object tracking)
 pip3 install --break-system-packages "lap>=0.5.12"
 ```
 
-### 6. Install Hailo AI Kit
+---
 
-Follow official Raspberry Pi AI Kit setup:
+## SECTION 3: CAMERA CONFIGURATION
 
-```bash
-# Install Hailo software
-wget https://github.com/hailo-ai/hailo-rpi5-examples/releases/download/v1.0.0/hailo-rpi5-examples-v1.0.0.deb
-sudo dpkg -i hailo-rpi5-examples-v1.0.0.deb
+**WARLOCK AUTO-DETECTS ALL CAMERA TYPES**
 
-# Verify installation
-hailo-verify
-```
+System automatically initializes:
+- USB cameras
+- Standard Pi cameras (v2/v3/HQ)
+- Arducam Native sensors (IMX462/IMX290/IMX327)
+- Arducam PiVariety modules
 
-### 7. Configure Network
+### 3.1 USB Cameras
 
-Edit `helmet/helmet_config.yaml`:
-
-```yaml
-network:
-  source_id: "WARLOCK-001-HMU"  # Unique ID
-  bmu_host: "192.168.200.2"     # BMU IP (cable) or WiFi IP
-  tcp_port: 5000
-  udp_port: 5001
-```
-
-For USB-C Ethernet connection:
+Plug and verify:
 
 ```bash
-# Set static IP on usb0
-sudo nano /etc/dhcpcd.conf
-# Add:
-# interface usb0
-# static ip_address=192.168.200.1/24
-```
-
-### 8. Camera Setup
-
-**WARLOCK automatically detects and initializes all camera types** - no manual configuration needed! The system will:
-- Detect CSI cameras via Picamera2/libcamera
-- Identify sensor models (IMX462, IMX290, IMX708, etc.)
-- Fall back to USB cameras if no CSI camera found
-- Log which camera was selected on startup
-
-WARLOCK supports three types of cameras:
-
-#### Option A: USB Cameras (Easiest)
-USB cameras work out of the box with OpenCV VideoCapture. Simply plug in and test:
-
-```bash
-# List video devices
 ls /dev/video*
-
-# Test camera
-python3 -c "import cv2; cap = cv2.VideoCapture(0); print('Camera OK' if cap.isOpened() else 'Camera FAIL')"
 ```
 
-#### Option B: Standard Raspberry Pi Cameras
-Standard Pi cameras (v2, v3, HQ) are auto-detected:
+### 3.2 Standard Pi Cameras
+
+Test detection:
 
 ```bash
-# Check if camera is detected
 rpicam-hello --list-cameras
-
-# Test camera
 rpicam-still -t 5000 -n -o test.jpg
 ```
 
-#### Option C: Arducam Low-Light Cameras (IMX462, IMX290, IMX327)
+### 3.3 Arducam Native Sensors
 
-Arducam offers two types of low-light cameras. **Check your product SKU to determine which type you have:**
+**SKU:** B0423 (IMX462) | B0424 (IMX290) | B0425 (IMX327)
 
-**C1. Native Low-Light Cameras (Recommended for simplicity)**
-
-These cameras work with standard Raspberry Pi dtoverlays (no special installation needed):
-
-- **IMX462 Native** (SKU: B0423) - 2MP Ultra Low Light
-- **IMX290 Native** (SKU: B0424) - 2MP Ultra Low Light
-- **IMX327 Native** (SKU: B0425) - 2MP Ultra Low Light (uses imx290 driver)
-
-**Setup for Pi 5 with Bookworm OS:**
+Configure dtoverlay:
 
 ```bash
 sudo nano /boot/firmware/config.txt
-# Find the line: [all], add under it:
+```
 
-# For IMX462:
+Add under `[all]`:
+
+```
+# IMX462
 dtoverlay=imx462
 
-# For IMX290:
+# IMX290 / IMX327
 dtoverlay=imx290,clock-frequency=37125000
-
-# For IMX327 (uses IMX290 driver):
-dtoverlay=imx290,clock-frequency=37125000
-
-# Save and reboot
 ```
 
-For camera on **cam0 port** (not default), append `,cam0` to the dtoverlay line.
+Reboot and test:
 
-Test camera:
 ```bash
+sudo reboot
 rpicam-hello --list-cameras
-rpicam-still -t 5000 -n -o test.jpg
 ```
 
-**C2. PiVariety Low-Light Cameras (Requires special installation)**
+### 3.4 Arducam PiVariety Modules
 
-These cameras require Arducam's custom libcamera packages:
+**Connection:** Camera Port 1 (between Ethernet/HDMI, silver contacts face Ethernet)
 
-**IMPORTANT:** Connect camera to **Camera Port 1** on Raspberry Pi 5 (between Ethernet and HDMI, silver contacts facing Ethernet port).
-
-1. Download and run Arducam installation script:
+Install PiVariety packages:
 
 ```bash
 cd ~
 wget -O install_pivariety_pkgs.sh https://github.com/ArduCAM/Arducam-Pivariety-V4L2-Driver/releases/download/install_script/install_pivariety_pkgs.sh
 chmod +x install_pivariety_pkgs.sh
-```
-
-2. Install libcamera:
-
-```bash
 ./install_pivariety_pkgs.sh -p libcamera_dev
-```
-
-3. Install libcamera-apps:
-
-```bash
 ./install_pivariety_pkgs.sh -p libcamera_apps
 ```
 
-4. Configure camera overlay:
+Configure overlay:
 
 ```bash
 sudo nano /boot/firmware/config.txt
-# Find the line: [all], add under it:
+```
+
+Add under `[all]`:
+
+```
 dtoverlay=arducam-pivariety
-# Save and reboot
 ```
 
-For camera on **cam0 port**, use: `dtoverlay=arducam-pivariety,cam0`
-
-5. Test PiVariety camera:
+Reboot and verify:
 
 ```bash
+sudo reboot
 rpicam-hello --list-cameras
-rpicam-still -t 5000 -n -o test.jpg
 ```
 
-**Hardware Connection Tips (All Arducam Cameras):**
-- Connect camera sensor to adapter board first (if applicable)
-- CSI ribbon cable silver contacts face **Ethernet port** on Pi 5
-- Ensure ribbon cable is firmly seated at both ends (hear a click)
-- Camera modules are ESD sensitive - ground yourself before handling
-- Default Camera Port 1 is between Ethernet and HDMI on Pi 5
+**Hardware checklist:**
+- Ribbon cable seated both ends (click sound)
+- Silver contacts face Ethernet port
+- ESD precautions observed
 
-**Note:** Raspberry Pi 5 uses picamera2/libcamera for CSI cameras. WARLOCK automatically detects and uses the appropriate camera interface.
+---
 
-### 9. Copy YOLO Model
+## SECTION 4: NETWORK CONFIG
+
+Edit config:
 
 ```bash
-# Copy yolo11n.pt or yolo11n-seg.pt to helmet directory
-cp ../yolo11n-seg.pt helmet/
+nano ~/warlock/software/helmet/helmet_config.yaml
 ```
 
-### 10. Test Standalone Mode
+Set parameters:
+
+```yaml
+network:
+  source_id: "WARLOCK-001-HMU"
+  bmu_host: "192.168.200.2"
+  tcp_port: 5000
+  udp_port: 5001
+```
+
+USB-C Ethernet static IP (optional):
+
+```bash
+sudo nano /etc/dhcpcd.conf
+```
+
+Add:
+
+```
+interface usb0
+static ip_address=192.168.200.1/24
+```
+
+---
+
+## SECTION 5: YOLO MODEL
+
+```bash
+cd ~/warlock/software
+cp /path/to/yolo11n-seg.pt helmet/
+```
+
+Model auto-downloads on first run if missing.
+
+---
+
+## SECTION 6: OPERATIONAL TEST
+
+### Desktop Mode (SSH with X forwarding)
 
 ```bash
 cd ~/warlock/software
 python3 helmet/helmet_main.py --standalone
-# Press 'Q' to quit
 ```
 
-## Auto-Start on Boot (Optional)
+### Headless Mode (DRM/KMS)
 
-Create systemd service:
+```bash
+cd ~/warlock/software
+WARLOCK_USE_DRM=1 python3 helmet/helmet_main.py --standalone
+```
+
+**Controls:** `Q` quit | `H` help | `P` plugins | `Y` YOLO | `F` FPS
+
+---
+
+## SECTION 7: AUTO-START SERVICE
+
+Create service file:
 
 ```bash
 sudo nano /etc/systemd/system/warlock-hmu.service
 ```
+
+Content:
 
 ```ini
 [Unit]
@@ -253,7 +248,8 @@ After=network.target
 Type=simple
 User=pi
 WorkingDirectory=/home/pi/warlock/software
-ExecStart=/usr/bin/python3 helmet/helmet_main.py
+Environment="WARLOCK_USE_DRM=1"
+ExecStart=/usr/bin/python3 helmet/helmet_main.py --standalone
 Restart=on-failure
 
 [Install]
@@ -272,118 +268,127 @@ Check status:
 
 ```bash
 sudo systemctl status warlock-hmu
+journalctl -u warlock-hmu -f
 ```
 
-## Troubleshooting
+---
 
-**CSI Camera not detected:**
+## SECTION 8: HAILO AI KIT (OPTIONAL)
 
 ```bash
-# Check if camera is detected by libcamera
+wget https://github.com/hailo-ai/hailo-rpi5-examples/releases/download/v1.0.0/hailo-rpi5-examples-v1.0.0.deb
+sudo dpkg -i hailo-rpi5-examples-v1.0.0.deb
+hailo-verify
+```
+
+---
+
+## TROUBLESHOOTING
+
+### Camera Not Detected
+
+```bash
 rpicam-hello --list-cameras
+```
 
-# If "No cameras available":
-# 1. Check ribbon cable connection (silver contacts face Ethernet on Pi 5)
-# 2. Verify camera is connected to correct port (Camera Port 1 is default)
-# 3. Check /boot/firmware/config.txt for camera settings
+**No cameras:**
+1. Check cable orientation (silver contacts face Ethernet)
+2. Verify Camera Port 1 connection
+3. Check dtoverlay in `/boot/firmware/config.txt`
+4. Reboot after config changes
 
-sudo nano /boot/firmware/config.txt
-# For Native Arducam cameras, add under [all]:
-#   dtoverlay=imx462  (or imx290,clock-frequency=37125000)
-# For PiVariety cameras:
-#   dtoverlay=arducam-pivariety
-# You may also need to comment out: #camera_auto_detect=1
+### CSI Display Issues (Pi 0-3)
 
+```bash
+sudo raspi-config
+# Advanced Options → Glamor acceleration
+# Advanced Options → GL Driver → GL (Full KMS)
 sudo reboot
 ```
 
-**CSI Camera display issues (Pi 0-3 only):**
+### I2C Errors (Error -121)
 
-```bash
-# Enable Glamor acceleration (required for older Pi models)
-sudo raspi-config
-# Navigate to: Advanced Options → Enable Glamor graphic acceleration
-# Reboot
+Hardware fault indicated. Actions:
+1. Reseat ribbon cable both ends
+2. Test different camera module
+3. Use USB camera as backup
 
-# If still having display issues, try Full KMS:
-sudo raspi-config
-# Navigate to: Advanced Options → GL Driver → GL (Full KMS)
-# Reboot
-```
-
-**CSI Camera I2C errors (Error -121):**
-
-```bash
-# Check kernel messages
-sudo dmesg | grep -i 'imx\|csi\|camera'
-
-# If you see "Error writing reg 0x303a: -121":
-# - This indicates faulty camera hardware or loose cable
-# - Try reseating the ribbon cable at both ends
-# - Test with a different camera
-# - Use USB camera as alternative
-```
-
-**USB Camera not detected:**
-
-```bash
-ls /dev/video*
-# Should show /dev/video8 or similar
-
-# Check device info
-v4l2-ctl --list-devices
-```
-
-**YOLO "No module named 'lap'" error:**
+### Missing Dependencies
 
 ```bash
 pip3 install --break-system-packages "lap>=0.5.12"
 ```
 
-**Hailo not working:**
+### Hailo Not Working
 
 ```bash
 hailo-verify
-# Should show "Hailo device detected"
 ```
 
-**IMU not detected:**
+### IMU Not Detected
 
 ```bash
 sudo i2cdetect -y 1
-# Should show device at 0x4a or 0x4b
 ```
 
-**Can't connect to BMU:**
+Should show device at 0x4a or 0x4b.
+
+### BMU Connection Failed
 
 ```bash
 ping 192.168.200.2
-# Check cable connection
-# Try WiFi fallback if available
 ```
 
-## Performance Tuning
+Check cable, verify BMU IP in config.
 
-**Increase GPU memory:**
+---
+
+## PERFORMANCE OPTIMIZATION
+
+### GPU Memory
 
 ```bash
-sudo nano /boot/config.txt
-# Add: gpu_mem=256
-sudo reboot
+sudo nano /boot/firmware/config.txt
 ```
 
-**Overclock (if needed):**
+Add:
+
+```
+gpu_mem=256
+```
+
+### Overclock (if needed)
 
 ```bash
-sudo nano /boot/config.txt
-# Add: arm_freq=2400
-# Add: over_voltage=6
-sudo reboot
+sudo nano /boot/firmware/config.txt
 ```
 
-**Monitor temperature:**
+Add:
+
+```
+arm_freq=2400
+over_voltage=6
+```
+
+### Temperature Monitoring
 
 ```bash
 watch vcgencmd measure_temp
-# Should stay below 70°C under load
 ```
+
+Target: Below 70°C under load
+
+---
+
+## PERFORMANCE METRICS
+
+| Mode | FPS | Latency | CPU | Use Case |
+|------|-----|---------|-----|----------|
+| X11 | 45-50 | ~10ms | 15-20% | Development |
+| DRM/KMS | 55-60 | ~2ms | 8-12% | Field ops |
+
+**With Hailo-8L:** 30-60 FPS, 15-20ms inference
+
+---
+
+**END OF MANUAL**
