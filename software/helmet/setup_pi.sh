@@ -205,6 +205,62 @@ install_python_dependencies() {
     print_success "YOLO tracking dependencies installed"
 }
 
+# Install Arducam PiVariety camera support (optional)
+install_arducam_pivariety() {
+    print_header "Arducam PiVariety Camera Support (Optional)"
+
+    print_info "Do you want to install Arducam PiVariety camera support?"
+    print_info "This is needed for Arducam low-light cameras (IMX462, IMX327, etc.)"
+    echo -n "Install PiVariety support? [y/N]: "
+    read -r response
+
+    if [[ ! "$response" =~ ^[Yy]$ ]]; then
+        print_info "Skipping Arducam PiVariety installation"
+        return
+    fi
+
+    print_info "Downloading Arducam installation script..."
+    cd "$HOME"
+    wget -O install_pivariety_pkgs.sh https://github.com/ArduCAM/Arducam-Pivariety-V4L2-Driver/releases/download/install_script/install_pivariety_pkgs.sh
+    chmod +x install_pivariety_pkgs.sh
+    print_success "Downloaded installation script"
+
+    print_info "Installing Arducam libcamera (this may take a few minutes)..."
+    ./install_pivariety_pkgs.sh -p libcamera_dev
+    print_success "Arducam libcamera installed"
+
+    print_info "Installing Arducam libcamera-apps..."
+    ./install_pivariety_pkgs.sh -p libcamera_apps
+    print_success "Arducam libcamera-apps installed"
+
+    # Configure camera overlay
+    local config_file="/boot/firmware/config.txt"
+    if [ -f "$config_file" ]; then
+        if ! grep -q "^dtoverlay=arducam-pivariety" "$config_file"; then
+            print_info "Configuring camera overlay in $config_file..."
+
+            # Find [all] section and add overlay
+            if grep -q "^\[all\]" "$config_file"; then
+                sudo sed -i '/^\[all\]/a dtoverlay=arducam-pivariety' "$config_file"
+                print_success "Added dtoverlay=arducam-pivariety to config.txt"
+            else
+                echo "" | sudo tee -a "$config_file" > /dev/null
+                echo "[all]" | sudo tee -a "$config_file" > /dev/null
+                echo "dtoverlay=arducam-pivariety" | sudo tee -a "$config_file" > /dev/null
+                print_success "Added [all] section and dtoverlay=arducam-pivariety to config.txt"
+            fi
+
+            print_warning "Camera overlay configured - reboot required to take effect"
+        else
+            print_info "Arducam PiVariety overlay already configured"
+        fi
+    fi
+
+    print_success "Arducam PiVariety installation complete"
+    print_info "IMPORTANT: Connect camera to Camera Port 1 on Raspberry Pi 5"
+    print_info "Test camera after reboot with: rpicam-hello --list-cameras"
+}
+
 # Configure camera
 configure_camera() {
     print_header "Configuring Camera"
@@ -217,15 +273,10 @@ configure_camera() {
         return
     fi
 
-    # Check if camera is already configured
-    if grep -q "^dtoverlay=imx462" "$config_file"; then
-        print_info "Camera overlay already configured"
-    else
-        print_info "Camera will use auto-detection by default"
-        print_info "If you have issues, you may need to manually add camera overlay:"
-        print_info "  sudo nano $config_file"
-        print_info "  Add: dtoverlay=imx462  (or your camera model)"
-    fi
+    print_info "Camera configuration options:"
+    print_info "  • USB cameras: Work out of the box with OpenCV"
+    print_info "  • Standard Pi cameras: Auto-detected by default"
+    print_info "  • Arducam PiVariety: Requires special installation (see previous step)"
 
     print_success "Camera configuration checked"
 }
@@ -461,6 +512,7 @@ main() {
     setup_udev_rules
     setup_repository
     install_python_dependencies
+    install_arducam_pivariety
     configure_camera
     create_convenience_scripts
     create_systemd_service

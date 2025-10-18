@@ -98,35 +98,81 @@ sudo nano /etc/dhcpcd.conf
 # static ip_address=192.168.200.1/24
 ```
 
-### 8. Test Camera
+### 8. Camera Setup
 
-For **CSI cameras** (IMX462, etc.):
-```bash
-# Check if camera is detected
-rpicam-hello --list-cameras
+WARLOCK supports three types of cameras:
 
-# If not detected, check config.txt
-sudo nano /boot/firmware/config.txt
-# Add: dtoverlay=imx462  (or your camera model)
-# Comment out: #camera_auto_detect=1
-sudo reboot
-```
+#### Option A: USB Cameras (Easiest)
+USB cameras work out of the box with OpenCV VideoCapture. Simply plug in and test:
 
-For **USB cameras**:
 ```bash
 # List video devices
 ls /dev/video*
 
-# Check device info
-v4l2-ctl --list-devices
-```
-
-Test camera capture:
-```bash
+# Test camera
 python3 -c "import cv2; cap = cv2.VideoCapture(0); print('Camera OK' if cap.isOpened() else 'Camera FAIL')"
 ```
 
-**Note:** Raspberry Pi 5 uses picamera2 for CSI cameras. USB cameras use OpenCV VideoCapture. WARLOCK automatically detects and uses the appropriate method.
+#### Option B: Standard Raspberry Pi Cameras
+Standard Pi cameras (v2, v3, HQ) are auto-detected:
+
+```bash
+# Check if camera is detected
+rpicam-hello --list-cameras
+
+# Test camera
+rpicam-still -t 5000 -n -o test.jpg
+```
+
+#### Option C: Arducam PiVariety Cameras (IMX462, IMX327, etc.)
+
+**IMPORTANT:** Connect PiVariety cameras to **Camera Port 1** on Raspberry Pi 5 (between Ethernet and HDMI, silver contacts facing Ethernet port).
+
+1. Download and run Arducam installation script:
+
+```bash
+cd ~
+wget -O install_pivariety_pkgs.sh https://github.com/ArduCAM/Arducam-Pivariety-V4L2-Driver/releases/download/install_script/install_pivariety_pkgs.sh
+chmod +x install_pivariety_pkgs.sh
+```
+
+2. Install libcamera:
+
+```bash
+./install_pivariety_pkgs.sh -p libcamera_dev
+```
+
+3. Install libcamera-apps:
+
+```bash
+./install_pivariety_pkgs.sh -p libcamera_apps
+```
+
+4. Configure camera overlay:
+
+```bash
+sudo nano /boot/firmware/config.txt
+# Find the line: [all], add under it:
+dtoverlay=arducam-pivariety
+# Save and reboot
+```
+
+For camera on **cam0 port**, use: `dtoverlay=arducam-pivariety,cam0`
+
+5. Test PiVariety camera:
+
+```bash
+rpicam-hello --list-cameras
+rpicam-still -t 5000 -n -o test.jpg
+```
+
+**Hardware Connection Tips:**
+- CSI ribbon cable silver contacts face **Ethernet port** on Pi 5
+- Ensure ribbon cable is firmly seated at both ends
+- Camera modules are ESD sensitive - ground yourself before handling
+- Check camera product page for specific connection diagrams
+
+**Note:** Raspberry Pi 5 uses picamera2/libcamera for CSI cameras. WARLOCK automatically detects and uses the appropriate camera interface.
 
 ### 9. Copy YOLO Model
 
