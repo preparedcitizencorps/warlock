@@ -91,6 +91,7 @@ install_core_dependencies() {
         "git"
         "libgl1"
         "libglib2.0-0"
+        "v4l-utils"  # Video4Linux utilities for camera detection
     )
 
     print_info "Installing: ${packages[*]}"

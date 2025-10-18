@@ -100,6 +100,12 @@ sudo nano /etc/dhcpcd.conf
 
 ### 8. Camera Setup
 
+**WARLOCK automatically detects and initializes all camera types** - no manual configuration needed! The system will:
+- Detect CSI cameras via Picamera2/libcamera
+- Identify sensor models (IMX462, IMX290, IMX708, etc.)
+- Fall back to USB cameras if no CSI camera found
+- Log which camera was selected on startup
+
 WARLOCK supports three types of cameras:
 
 #### Option A: USB Cameras (Easiest)
