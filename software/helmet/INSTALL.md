@@ -124,9 +124,49 @@ rpicam-hello --list-cameras
 rpicam-still -t 5000 -n -o test.jpg
 ```
 
-#### Option C: Arducam PiVariety Cameras (IMX462, IMX327, etc.)
+#### Option C: Arducam Low-Light Cameras (IMX462, IMX290, IMX327)
 
-**IMPORTANT:** Connect PiVariety cameras to **Camera Port 1** on Raspberry Pi 5 (between Ethernet and HDMI, silver contacts facing Ethernet port).
+Arducam offers two types of low-light cameras. **Check your product SKU to determine which type you have:**
+
+**C1. Native Low-Light Cameras (Recommended for simplicity)**
+
+These cameras work with standard Raspberry Pi dtoverlays (no special installation needed):
+
+- **IMX462 Native** (SKU: B0423) - 2MP Ultra Low Light
+- **IMX290 Native** (SKU: B0424) - 2MP Ultra Low Light
+- **IMX327 Native** (SKU: B0425) - 2MP Ultra Low Light (uses imx290 driver)
+
+**Setup for Pi 5 with Bookworm OS:**
+
+```bash
+sudo nano /boot/firmware/config.txt
+# Find the line: [all], add under it:
+
+# For IMX462:
+dtoverlay=imx462
+
+# For IMX290:
+dtoverlay=imx290,clock-frequency=37125000
+
+# For IMX327 (uses IMX290 driver):
+dtoverlay=imx290,clock-frequency=37125000
+
+# Save and reboot
+```
+
+For camera on **cam0 port** (not default), append `,cam0` to the dtoverlay line.
+
+Test camera:
+```bash
+rpicam-hello --list-cameras
+rpicam-still -t 5000 -n -o test.jpg
+```
+
+**C2. PiVariety Low-Light Cameras (Requires special installation)**
+
+These cameras require Arducam's custom libcamera packages:
+
+**IMPORTANT:** Connect camera to **Camera Port 1** on Raspberry Pi 5 (between Ethernet and HDMI, silver contacts facing Ethernet port).
 
 1. Download and run Arducam installation script:
 
@@ -166,11 +206,12 @@ rpicam-hello --list-cameras
 rpicam-still -t 5000 -n -o test.jpg
 ```
 
-**Hardware Connection Tips:**
+**Hardware Connection Tips (All Arducam Cameras):**
+- Connect camera sensor to adapter board first (if applicable)
 - CSI ribbon cable silver contacts face **Ethernet port** on Pi 5
-- Ensure ribbon cable is firmly seated at both ends
+- Ensure ribbon cable is firmly seated at both ends (hear a click)
 - Camera modules are ESD sensitive - ground yourself before handling
-- Check camera product page for specific connection diagrams
+- Default Camera Port 1 is between Ethernet and HDMI on Pi 5
 
 **Note:** Raspberry Pi 5 uses picamera2/libcamera for CSI cameras. WARLOCK automatically detects and uses the appropriate camera interface.
 
@@ -236,13 +277,32 @@ sudo systemctl status warlock-hmu
 rpicam-hello --list-cameras
 
 # If "No cameras available":
-# 1. Check ribbon cable connection (blue tab orientation)
-# 2. Check /boot/firmware/config.txt for camera settings
-# 3. Try manual overlay:
+# 1. Check ribbon cable connection (silver contacts face Ethernet on Pi 5)
+# 2. Verify camera is connected to correct port (Camera Port 1 is default)
+# 3. Check /boot/firmware/config.txt for camera settings
+
 sudo nano /boot/firmware/config.txt
-# Add: dtoverlay=imx462
-# Comment: #camera_auto_detect=1
+# For Native Arducam cameras, add under [all]:
+#   dtoverlay=imx462  (or imx290,clock-frequency=37125000)
+# For PiVariety cameras:
+#   dtoverlay=arducam-pivariety
+# You may also need to comment out: #camera_auto_detect=1
+
 sudo reboot
+```
+
+**CSI Camera display issues (Pi 0-3 only):**
+
+```bash
+# Enable Glamor acceleration (required for older Pi models)
+sudo raspi-config
+# Navigate to: Advanced Options → Enable Glamor graphic acceleration
+# Reboot
+
+# If still having display issues, try Full KMS:
+sudo raspi-config
+# Navigate to: Advanced Options → GL Driver → GL (Full KMS)
+# Reboot
 ```
 
 **CSI Camera I2C errors (Error -121):**
