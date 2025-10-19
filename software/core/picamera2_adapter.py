@@ -42,6 +42,13 @@ class Picamera2Adapter:
 
     def release(self):
         if self.camera:
-            self.camera.stop()
-            self.camera.close()
+            try:
+                self.camera.stop()
+            except Exception as e:
+                logger.error(f"Error stopping camera: {e}")
+            try:
+                self.camera.close()
+            except Exception as e:
+                logger.error(f"Error closing camera: {e}")
+            self.camera = None
             logger.info("Picamera2 released")

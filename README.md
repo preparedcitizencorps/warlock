@@ -2,7 +2,7 @@
 
 > **W**earable **A**ugmented **R**eality & **L**inked **O**perational **C**ombat **K**it
 
-**Halo-style tactical HUD for real-world operations. Open source. Built for civilians.**
+**Helmet-mounted AR system with TAK integration. Open source. Built for the field.**
 
 ![WARLOCK HUD with YOLO Detection](docs/images/poc-v1.png)
 
@@ -10,11 +10,11 @@
 
 ## MISSION
 
-Build a helmet-mounted AR system with:
-- Real-time object detection and IFF
-- GPS navigation with terrain overlay
-- Night vision and thermal imaging
-- Team coordination and data sharing
+Build a helmet-mounted computer that interfaces with TAK on your phone to overlay waypoints and POIs on your HUD with:
+- Dual low-light cameras (IMX462) + thermal imaging (FLIR Lepton 3.5)
+- Real-time AI object detection (YOLO11 on Hailo-8L)
+- TAK server integration for waypoint overlay
+- GPS navigation with terrain mapping
 - Field-hardened, modular, extensible
 
 ---
@@ -31,7 +31,7 @@ Choose your setup path:
 git clone https://github.com/preparedcitizencorps/warlock.git
 cd warlock/software
 pip install -r requirements.txt
-python3 helmet/helmet_main.py --standalone
+python3 main.py
 ```
 
 Press `H` for help, `Q` to quit. YOLO will auto-download on first run (~50MB).
@@ -41,10 +41,12 @@ Press `H` for help, `Q` to quit. YOLO will auto-download on first run (~50MB).
 ### 🎯 Option 2: Raspberry Pi Setup
 
 **Hardware needed:**
-- Raspberry Pi 5 (4GB or 8GB)
-- Camera (USB webcam or CSI camera)
+- Raspberry Pi 5 (8GB recommended)
+- 2x Low-light cameras (IMX462) or USB webcams
+- Thermal camera (FLIR Lepton 3.5)
 - MicroSD card (32GB+)
-- Optional: Hailo-8L AI accelerator for 60 FPS
+- Hailo-8L AI accelerator for 60 FPS
+- Power system: 30min battery + extended battery pack
 
 **Choose your OS:**
 
@@ -59,11 +61,11 @@ Press `H` for help, `Q` to quit. YOLO will auto-download on first run (~50MB).
 
 ```bash
 # One-line installer - handles everything automatically
-curl -fsSL https://raw.githubusercontent.com/preparedcitizencorps/warlock/master/software/helmet/setup_pi.sh | bash
+curl -fsSL https://raw.githubusercontent.com/preparedcitizencorps/warlock/master/software/setup_pi.sh | bash
 
 # OR if you already cloned the repo:
 git clone https://github.com/preparedcitizencorps/warlock.git
-cd warlock/software/helmet
+cd warlock/software
 chmod +x setup_pi.sh
 ./setup_pi.sh
 ```
@@ -72,7 +74,7 @@ The script will:
 - Install all dependencies (OpenCV, picamera2, evdev, etc.)
 - Configure user groups and permissions
 - Set up camera and DRM/KMS support
-- Create launcher scripts (`./run_hmu.sh`, `./run_bmu.sh`)
+- Create launcher script (`./run_warlock.sh`)
 - Optional: Create systemd service for auto-start
 
 **Option B: Manual Setup**
@@ -93,14 +95,14 @@ sudo usermod -a -G video,input $USER
 # 5. Clone and install
 git clone https://github.com/preparedcitizencorps/warlock.git
 cd warlock/software
-pip3 install -r helmet/requirements.txt --break-system-packages
+pip3 install -r requirements.txt --break-system-packages
 
 # 6. Run WARLOCK
 # On Desktop OS:
-python3 helmet/helmet_main.py --standalone
+python3 main.py
 
 # On Lite OS (headless):
-WARLOCK_USE_DRM=1 python3 helmet/helmet_main.py --standalone
+WARLOCK_USE_DRM=1 python3 main.py
 ```
 
 **Controls:**
@@ -108,28 +110,18 @@ WARLOCK_USE_DRM=1 python3 helmet/helmet_main.py --standalone
 - `Y` - YOLO toggle | `E` - Auto-exposure | `F` - FPS
 - `M` - Map | `C` - Screenshot
 
-**Two-Pi System (HMU + BMU):**
-
-Once you have both units configured, run:
-
-```bash
-# Terminal 1 - Body Unit:
-python3 body/body_main.py
-
-# Terminal 2 - Helmet Unit:
-python3 helmet/helmet_main.py
-```
-
 ---
 
 ## CAPABILITIES
 
-- **Two-unit architecture** - Distributed HMU (helmet) + BMU (body) system
+- **Single helmet-mounted unit** - All processing on one Raspberry Pi 5
+- **Multi-camera system** - 2x low-light (IMX462) + 1x thermal (FLIR Lepton 3.5)
 - **Modular plugin system** - Hot-swappable components with dependency resolution
 - **Real-time AI detection** - YOLO11 with Hailo-8L acceleration (30-60 FPS)
+- **TAK integration** - Connect to TAK server on your phone for waypoint overlay
 - **GPS navigation** - Compass + terrain overlay with OpenTopoMap
-- **Network resilient** - USB-C primary with WiFi failover
 - **AR display ready** - Rokid Max glasses with tactical HUD overlay
+- **Dual battery system** - 30min compact battery + extended backpack battery
 
 ---
 
@@ -230,15 +222,15 @@ sudo usermod -a -G video,input $USER
 **2. Run in DRM mode:**
 ```bash
 cd ~/warlock/software
-WARLOCK_USE_DRM=1 python3 helmet/helmet_main.py --standalone
+WARLOCK_USE_DRM=1 python3 main.py
 ```
 
 ### Auto-Start on Boot (Production)
 
-Create `/etc/systemd/system/warlock-hmu.service`:
+Create `/etc/systemd/system/warlock.service`:
 ```ini
 [Unit]
-Description=WARLOCK Helmet-Mounted Unit
+Description=WARLOCK Helmet-Mounted Computer
 After=network.target
 
 [Service]
@@ -246,7 +238,7 @@ Type=simple
 User=pi
 WorkingDirectory=/home/pi/warlock/software
 Environment="WARLOCK_USE_DRM=1"
-ExecStart=/usr/bin/python3 helmet/helmet_main.py --standalone
+ExecStart=/usr/bin/python3 main.py
 Restart=on-failure
 
 [Install]
@@ -256,8 +248,8 @@ WantedBy=multi-user.target
 Enable:
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable warlock-hmu
-sudo systemctl start warlock-hmu
+sudo systemctl enable warlock
+sudo systemctl start warlock
 ```
 
 ### Troubleshooting DRM Mode
@@ -288,52 +280,46 @@ sudo udevadm control --reload-rules && sudo udevadm trigger
 
 ## ROADMAP
 
-**Phase 1: Network Foundation** ✅ COMPLETE
-- Two-Pi architecture (HMU + BMU)
-- Network protocol and failover
-- GPS data flow and plugin system
+**Phase 1: Core System** 🔄 IN PROGRESS
+- Single-unit helmet architecture
+- Multi-camera support (2x low-light + 1x thermal)
+- AI object detection (YOLO11 on Hailo-8L)
+- Plugin system and HUD rendering
 
-**Phase 2: Hardware Integration** 🔄 IN PROGRESS
-- Real GPS modules (U-blox ZED-F9P for RTK)
+**Phase 2: TAK Integration** 📋 PLANNED
+- TAK server client (CoT protocol)
+- Waypoint overlay on HUD
+- POI/marker display
+- Real-time position sync with phone
+
+**Phase 3: GPS & Navigation** 📋 PLANNED
+- GPS module integration (U-blox NEO-M9N)
 - IMU sensors (BNO085)
-- Thermal camera (FLIR Lepton 3.5)
-- Low-light camera (IMX462)
+- Compass and terrain overlay
+- Dead reckoning
 
-**Phase 3: SIGINT** 📋 PLANNED
-- RTL-SDR RF scanning (150-500m detection)
-- WiFi CSI through-wall detection (5-15m)
-- Signal triangulation with multi-unit coordination
-- Alert display on HUD
+**Phase 4: Power System** 📋 PLANNED
+- Compact 30min helmet battery
+- Extended battery pack with cable
+- Hot-swap capability
+- Power management optimization
 
-**Phase 4: Communications** 📋 PLANNED
-- SA818 radio integration (VHF/UHF)
-- Hands-free PTT and voice control
-- WiFi mesh (0-300m squad coordination)
-- LoRa mesh (300m-5km inter-squad relay)
-
-**Phase 5: ATAK Integration** 📋 PLANNED
-- CoT message publishing
-- Team position sharing
-- Waypoint navigation
-- TAK server bridge
-
-**Phase 6: Field Hardening** 📋 PLANNED
+**Phase 5: Field Hardening** 📋 PLANNED
 - Weatherproof enclosures
-- Extended battery life (8+ hours)
-- 3D-printed helmet mount
+- 3D-printed helmet mount (fits standard NV mounts)
+- Cable management system
 - Ruggedized field testing
 
 ---
 
-### Detection Capabilities Summary
-| Sensor | Range | Best For | Status |
-|--------|-------|----------|--------|
-| **Low-light Camera** | 50-200m | Visual ID, daylight/night | 🔄 Phase 2 |
-| **Thermal Imaging** | 50-300m | Heat signatures, darkness | 🔄 Phase 2 |
-| **WiFi CSI** | 5-15m | Through-wall motion | 📋 Phase 3 |
-| **RF Triangulation** | 150-500m | Radio emitters, drones | 📋 Phase 3 |
+### Camera Configuration
+| Camera | Sensor | Purpose | Mounting |
+|--------|--------|---------|----------|
+| **Low-light 1** | IMX462 | Primary visual, night capable | Center |
+| **Low-light 2** | IMX462 | Stereo/backup visual | Offset |
+| **Thermal** | FLIR Lepton 3.5 | Heat signatures, total darkness | Side mount |
 
-**Combined:** Multi-sensor fusion for comprehensive situational awareness.
+**Combined:** Multi-spectral fusion for 24/7 situational awareness.
 
 ---
 

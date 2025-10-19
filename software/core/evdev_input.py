@@ -71,17 +71,14 @@ class EvdevKeyboard:
             logger.info("Initializing evdev keyboard input...")
 
             if self.device_path:
-                # Use specified device
                 self.device = self.evdev.InputDevice(self.device_path)
                 logger.info(f"Using specified keyboard: {self.device.name} at {self.device_path}")
             else:
-                # Auto-detect keyboard
                 self.device = self._find_keyboard()
                 if not self.device:
                     raise RuntimeError("No keyboard device found")
                 logger.info(f"Auto-detected keyboard: {self.device.name} at {self.device.path}")
 
-            # Grab device for exclusive access (optional)
             if self.auto_grab:
                 self.device.grab()
                 self._grabbed = True

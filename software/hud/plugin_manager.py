@@ -13,7 +13,7 @@ from common.plugin_base import HUDContext, HUDPlugin, PluginConfig, PluginMetada
 
 
 class PluginManager:
-    def __init__(self, context: HUDContext, plugin_dir: str = "helmet/hud/plugins"):
+    def __init__(self, context: HUDContext, plugin_dir: str = "hud/plugins"):
         self.context = context
         self.plugin_dir = Path(plugin_dir)
         self.plugins: List[HUDPlugin] = []
@@ -44,7 +44,7 @@ class PluginManager:
                 continue
 
             try:
-                module_name = f"helmet.hud.plugins.{plugin_file.stem}"
+                module_name = f"hud.plugins.{plugin_file.stem}"
                 module = importlib.import_module(module_name)
 
                 self.plugin_modules[plugin_file.stem] = module
@@ -284,7 +284,7 @@ class PluginManager:
             return False
 
         try:
-            module_name = f"helmet.hud.plugins.{module_file}"
+            module_name = f"hud.plugins.{module_file}"
             if module_name in sys.modules:
                 importlib.reload(sys.modules[module_name])
                 module = sys.modules[module_name]
@@ -328,7 +328,7 @@ class PluginManager:
                             if (
                                 issubclass(obj, HUDPlugin)
                                 and obj is not HUDPlugin
-                                and obj.__module__ == f"helmet.hud.plugins.{file_name}"
+                                and obj.__module__ == module.__name__
                             ):
                                 modified.append(name)
 
@@ -351,7 +351,7 @@ class PluginManager:
                 print(f"Plugin file not found: {file_path}")
                 return None
 
-            module_name = f"helmet.hud.plugins.{plugin_path.stem}"
+            module_name = f"hud.plugins.{plugin_path.stem}"
             spec = importlib.util.spec_from_file_location(module_name, plugin_path)
             if spec and spec.loader:
                 module = importlib.util.module_from_spec(spec)

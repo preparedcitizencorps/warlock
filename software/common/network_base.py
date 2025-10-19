@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Base networking classes for HMU-BMU communication."""
+"""Base networking classes for WARLOCK communication."""
 
 import json
 import logging
@@ -27,8 +27,8 @@ class NetworkConnection:
         """Initialize network connection.
 
         Args:
-            is_server: True if this is the server (BMU), False for client (HMU)
-            source_id: Unique identifier (e.g., "WARLOCK-001-HMU")
+            is_server: True if this is the server, False for client
+            source_id: Unique identifier (e.g., "WARLOCK-001")
         """
         self.is_server = is_server
         self.source_id = source_id

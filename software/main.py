@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-WARLOCK Helmet-Mounted Unit (HMU) Main Entry Point
+WARLOCK - Wearable Augmented Reality & Linked Operational Combat Kit
 
-This unit handles:
-- Visual sensing (camera input)
+Helmet-mounted AR system with:
+- Dual low-light cameras + thermal imaging
 - AI object detection (YOLO on Hailo)
+- TAK integration for waypoint overlay
 - HUD rendering and display
-- Communication with Body-Mounted Unit (BMU) for GPS, team data, alerts
 
 Display Modes:
 - X11 mode (default): Uses cv2.imshow() - requires desktop or X11 forwarding
@@ -27,39 +27,36 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from common.config_loader import create_plugin_config, load_config
 from common.input_manager import InputManager
 from common.plugin_base import HUDContext
-from helmet.core.camera_controller import CameraController
-from helmet.core.network_client import HMUNetworkClient
-from helmet.hud.plugin_manager import PluginManager
+from core.camera_controller import CameraController
+from core.network_client import WarlockNetworkClient
+
+from hud.plugin_manager import PluginManager
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
-class HMUApplication:
-    """Helmet-Mounted Unit application."""
+class WarlockApplication:
+    """WARLOCK application."""
 
     DEFAULT_FRAME_WIDTH = 1280
     DEFAULT_FRAME_HEIGHT = 720
 
-    def __init__(self, config_path: str = None, network_enabled: bool = True, use_drm: bool = False):
-        """Initialize HMU application.
+    def __init__(self, config_path: str = None, use_drm: bool = False):
+        """Initialize WARLOCK application.
 
         Args:
-            config_path: Path to helmet_config.yaml
-            network_enabled: Connect to BMU if True, standalone mode if False
+            config_path: Path to config.yaml
             use_drm: Use DRM/KMS display (headless) instead of X11/cv2.imshow
         """
-        self.config_path = config_path or str(Path(__file__).parent / "helmet_config.yaml")
-        self.network_enabled = network_enabled
+        self.config_path = config_path or str(Path(__file__).parent / "config.yaml")
         self.use_drm = use_drm
 
         self.context = None
         self.plugin_manager = None
         self.camera = None
-        self.network_client = None
         self.input_manager = None
 
-        # Display and input backends
         self.display = None
         self.keyboard = None
 
@@ -67,9 +64,9 @@ class HMUApplication:
         self.running = False
 
     def initialize(self):
-        """Initialize all HMU components."""
+        """Initialize all WARLOCK components."""
         logger.info("=" * 60)
-        logger.info("WARLOCK HELMET-MOUNTED UNIT")
+        logger.info("WARLOCK")
         logger.info("=" * 60)
 
         logger.info("Loading configuration...")
@@ -100,9 +97,8 @@ class HMUApplication:
             logger.error(f"Plugin loading failed: {e}")
             raise
 
-        # Initialize camera with automatic detection
         logger.info("Detecting and initializing camera...")
-        from helmet.core.camera_detection import initialize_camera
+        from core.camera_detection import initialize_camera
 
         try:
             cap, camera_info = initialize_camera(
@@ -116,12 +112,11 @@ class HMUApplication:
         self.camera = CameraController(cap)
         self.context.state["camera_handle"] = self.camera
 
-        # Initialize display backend (DRM or X11)
         if self.use_drm:
             logger.info("Initializing DRM/KMS display (headless mode)...")
             try:
-                from helmet.core.drm_display import DRMDisplay
-                from helmet.core.evdev_input import EvdevKeyboard
+                from core.drm_display import DRMDisplay
+                from core.evdev_input import EvdevKeyboard
 
                 self.display = DRMDisplay(self.DEFAULT_FRAME_WIDTH, self.DEFAULT_FRAME_HEIGHT)
                 self.keyboard = EvdevKeyboard(auto_grab=True)
@@ -133,31 +128,15 @@ class HMUApplication:
         else:
             logger.info("Using X11 display mode (cv2.imshow)")
 
-        if self.network_enabled:
-            logger.info("Connecting to BMU...")
-            bmu_config = config.get("network", {})
-            bmu_host = bmu_config.get("bmu_host", "192.168.200.2")
-            source_id = bmu_config.get("source_id", "WARLOCK-001-HMU")
-
-            self.network_client = HMUNetworkClient(source_id=source_id, server_host=bmu_host)
-            self.network_client.register_default_handlers()
-
-            if self.network_client.connect():
-                logger.info("Connected to BMU")
-                self.context.state["network_client"] = self.network_client
-            else:
-                logger.warning("Failed to connect to BMU - running in standalone mode")
-                self.network_enabled = False
-        else:
-            logger.info("Network disabled - running in standalone mode")
-            self._setup_simulated_data()
+        logger.info("Initializing with simulated TAK data...")
+        self._setup_simulated_data()
 
         logger.info("=" * 60)
-        logger.info("HMU ACTIVE - Press 'H' for help, 'Q' to quit")
+        logger.info("WARLOCK ACTIVE - Press 'H' for help, 'Q' to quit")
         logger.info("=" * 60)
 
     def _setup_simulated_data(self):
-        """Setup simulated GPS and team data for standalone mode."""
+        """Setup simulated GPS and TAK waypoint data for standalone mode."""
         self.context.state["player_position"] = {
             "latitude": 38.8339,
             "longitude": -104.8214,
@@ -165,16 +144,25 @@ class HMUApplication:
             "heading": 0.0,
         }
 
-        self.context.state["friendly_units"] = [
+        self.context.state["tak_waypoints"] = [
             {
-                "id": "alpha-1",
-                "callsign": "ALPHA-1",
+                "id": "wp-001",
+                "name": "Rally Point Alpha",
                 "latitude": 38.8350,
                 "longitude": -104.8200,
                 "bearing": 45,
                 "distance": 200,
-                "status": "active",
-            }
+                "type": "waypoint",
+            },
+            {
+                "id": "poi-001",
+                "name": "Observation Post",
+                "latitude": 38.8360,
+                "longitude": -104.8230,
+                "bearing": 15,
+                "distance": 350,
+                "type": "poi",
+            },
         ]
 
     def _initialize_input_manager(self, config: dict) -> InputManager:
@@ -224,35 +212,25 @@ class HMUApplication:
                 logger.error("Failed to grab frame")
                 break
 
-            if self.network_enabled and self.network_client:
-                gps_pos = self.network_client.get_latest("gps_position")
-                if gps_pos:
-                    self.context.state["player_position"] = gps_pos
+            try:
+                self.plugin_manager.update()
+            except Exception as e:
+                logger.error(f"Plugin update error: {e}", exc_info=True)
 
-                team_units = self.network_client.get_latest("team_positions")
-                if team_units:
-                    self.context.state["friendly_units"] = team_units
+            try:
+                frame = self.plugin_manager.render(frame)
+            except Exception as e:
+                logger.error(f"Plugin render error: {e}", exc_info=True)
 
-                rf_alerts = self.network_client.get_latest("rf_alerts")
-                wifi_alerts = self.network_client.get_latest("wifi_alerts")
-                self.context.state["rf_alerts"] = rf_alerts or []
-                self.context.state["wifi_alerts"] = wifi_alerts or []
-
-            self.plugin_manager.update()
-
-            frame = self.plugin_manager.render(frame)
-
-            # Display frame (DRM or X11)
             if self.use_drm:
                 self.display.show(frame)
             else:
-                cv2.imshow("WARLOCK HMU", frame)
+                cv2.imshow("WARLOCK", frame)
 
-            # Read keyboard input (evdev or cv2.waitKey)
             if self.use_drm:
-                key = self.keyboard.read_key(timeout=0.001)  # 1ms timeout
+                key = self.keyboard.read_key(timeout=0.001)
                 if key is None:
-                    key = 0xFF  # No key pressed
+                    key = 0xFF
             else:
                 key = cv2.waitKey(1) & 0xFF
 
@@ -281,10 +259,6 @@ class HMUApplication:
         if self.camera:
             self.camera.release()
 
-        if self.network_client:
-            self.network_client.stop()
-
-        # Cleanup display backend
         if self.use_drm:
             if self.display:
                 self.display.cleanup()
@@ -294,7 +268,7 @@ class HMUApplication:
             cv2.destroyAllWindows()
 
         logger.info("=" * 60)
-        logger.info("HMU Shutdown Complete")
+        logger.info("WARLOCK Shutdown Complete")
         logger.info("=" * 60)
 
 
@@ -302,21 +276,19 @@ def main():
     """Main entry point."""
     import argparse
 
-    parser = argparse.ArgumentParser(description="WARLOCK Helmet-Mounted Unit")
-    parser.add_argument("--config", type=str, help="Path to helmet_config.yaml")
-    parser.add_argument("--standalone", action="store_true", help="Run without BMU connection")
+    parser = argparse.ArgumentParser(description="WARLOCK - Wearable Augmented Reality & Linked Operational Combat Kit")
+    parser.add_argument("--config", type=str, help="Path to config.yaml")
     parser.add_argument(
         "--use-drm", action="store_true", help="Use DRM/KMS display (headless mode) instead of X11/cv2.imshow"
     )
     args = parser.parse_args()
 
-    # Check environment variable for DRM mode (can override command line)
     use_drm = args.use_drm or os.environ.get("WARLOCK_USE_DRM", "0") == "1"
 
     if use_drm:
         logger.info("DRM mode requested - will run in headless mode")
 
-    app = HMUApplication(config_path=args.config, network_enabled=not args.standalone, use_drm=use_drm)
+    app = WarlockApplication(config_path=args.config, use_drm=use_drm)
 
     try:
         app.initialize()

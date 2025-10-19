@@ -22,12 +22,12 @@ class CameraInfo:
         return f"{self.camera_type} ({self.sensor_model})"
 
 
-def detect_picamera2_cameras() -> Optional[list]:
+def detect_picamera2_cameras() -> list:
     try:
         from picamera2 import Picamera2
     except ImportError:
         logger.debug("Picamera2 not available")
-        return None
+        return []
 
     try:
         cameras = Picamera2.global_camera_info()
@@ -43,7 +43,7 @@ def detect_picamera2_cameras() -> Optional[list]:
             return []
     except Exception as e:
         logger.warning(f"Failed to query picamera2 cameras: {e}")
-        return None
+        return []
 
 
 def detect_v4l2_cameras() -> list:
@@ -160,7 +160,7 @@ def initialize_camera(width: int = 1280, height: int = 720, prefer_csi: bool = T
 
 
 def _init_picamera2(camera_num: int, width: int, height: int):
-    from helmet.core.picamera2_adapter import Picamera2Adapter
+    from core.picamera2_adapter import Picamera2Adapter
 
     return Picamera2Adapter(camera_num, width, height)
 

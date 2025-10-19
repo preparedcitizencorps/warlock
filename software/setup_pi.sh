@@ -2,14 +2,14 @@
 #
 # WARLOCK Raspberry Pi Setup Script
 #
-# Automates installation and configuration of WARLOCK HMU on Raspberry Pi 5.
+# Automates installation and configuration of WARLOCK on Raspberry Pi 5.
 # Run this script after flashing Raspberry Pi OS (Desktop or Lite).
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/preparedcitizencorps/warlock/master/software/helmet/setup_pi.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/preparedcitizencorps/warlock/master/software/setup_pi.sh | bash
 #   OR
 #   git clone https://github.com/preparedcitizencorps/warlock.git
-#   cd warlock/software/helmet
+#   cd warlock/software
 #   chmod +x setup_pi.sh
 #   ./setup_pi.sh
 #
@@ -179,20 +179,6 @@ install_python_dependencies() {
 
     cd "$INSTALL_DIR/software"
 
-    # Install helmet requirements
-    if [ -f "helmet/requirements.txt" ]; then
-        print_info "Installing helmet dependencies..."
-        pip3 install -r helmet/requirements.txt --break-system-packages
-        print_success "Helmet dependencies installed"
-    fi
-
-    # Install body requirements
-    if [ -f "body/requirements.txt" ]; then
-        print_info "Installing body dependencies..."
-        pip3 install -r body/requirements.txt --break-system-packages
-        print_success "Body dependencies installed"
-    fi
-
     # Install common requirements
     if [ -f "requirements.txt" ]; then
         print_info "Installing common dependencies..."
@@ -294,6 +280,37 @@ install_arducam_pivariety() {
         fi
     fi
 
+    # Fix config.txt for proper libcamera operation
+    print_info "Checking config.txt for libcamera compatibility..."
+
+    # Remove media-controller=0 parameter if present (breaks libcamera)
+    if grep -qE 'dtoverlay=arducam-pivariety,media-controller=0' "$config_file"; then
+        print_info "Fixing media-controller parameter in config.txt..."
+        sudo sed -i 's/^dtoverlay=arducam-pivariety,media-controller=0$/dtoverlay=arducam-pivariety/' "$config_file"
+        print_success "Removed media-controller=0 (enables libcamera support)"
+    fi
+
+    # Ensure I2C baudrate is set for IMX462 stability
+    if ! grep -qE '^[[:space:]]*dtparam=i2c_arm_baudrate=' "$config_file"; then
+        print_info "Setting I2C baudrate for camera stability..."
+        if grep -qE '^[[:space:]]*\[all\]' "$config_file"; then
+            sudo sed -i '/^[[:space:]]*\[all\]/a dtparam=i2c_arm_baudrate=10000' "$config_file"
+        fi
+        print_success "Set i2c_arm_baudrate=10000"
+    fi
+
+    # Create symlink for IMX462 camera tuning file
+    print_info "Creating camera tuning file symlink..."
+    local tuning_dir="/usr/share/libcamera/ipa/rpi/pisp"
+    if [ -f "$tuning_dir/imx462.json" ]; then
+        sudo ln -sf "$tuning_dir/imx462.json" "$tuning_dir/arducam-pivariety.json"
+        print_success "Created IMX462 tuning file symlink"
+        print_info "IMX462 camera will use optimized tuning parameters"
+    else
+        print_warning "IMX462 tuning file not found - may need to reboot first"
+        print_info "After reboot, run: sudo ln -sf $tuning_dir/imx462.json $tuning_dir/arducam-pivariety.json"
+    fi
+
     print_success "Arducam PiVariety installation complete"
     print_info "IMPORTANT: Connect camera to Camera Port 1 on Raspberry Pi 5"
     print_info "Test camera after reboot with: rpicam-hello --list-cameras"
@@ -323,17 +340,16 @@ configure_camera() {
 create_convenience_scripts() {
     print_header "Creating Convenience Scripts"
 
-    # HMU launcher script
-    local hmu_script="$INSTALL_DIR/run_hmu.sh"
-    cat > "$hmu_script" << 'EOF'
+    # Main WARLOCK launcher script
+    local launcher_script="$INSTALL_DIR/run_warlock.sh"
+    cat > "$launcher_script" << 'EOF'
 #!/bin/bash
-# Quick launcher for WARLOCK Helmet-Mounted Unit
+# Quick launcher for WARLOCK
 
 cd "$(dirname "$0")/software"
 
 # Parse arguments
 USE_DRM=0
-STANDALONE=0
 
 for arg in "$@"; do
     case $arg in
@@ -341,57 +357,42 @@ for arg in "$@"; do
             USE_DRM=1
             shift
             ;;
-        --standalone)
-            STANDALONE=1
-            shift
-            ;;
         --help|-h)
-            echo "WARLOCK HMU Launcher"
+            echo "WARLOCK Launcher"
             echo ""
-            echo "Usage: ./run_hmu.sh [OPTIONS]"
+            echo "Usage: ./run_warlock.sh [OPTIONS]"
             echo ""
             echo "Options:"
             echo "  --drm, --headless    Use DRM/KMS display (headless mode)"
-            echo "  --standalone         Run without BMU connection"
             echo "  --help, -h           Show this help message"
+            echo ""
+            echo "Display Modes:"
+            echo "  X11 (default): Displays on SSH client when using 'ssh -X'"
+            echo "  DRM: Direct display to connected monitor/AR glasses"
+            echo ""
+            echo "Examples:"
+            echo "  ssh -X pi@warlock.local './run_warlock.sh'"
+            echo "  ./run_warlock.sh --drm"
             exit 0
             ;;
     esac
 done
 
 # Build command
-CMD="python3 helmet/helmet_main.py"
-
-if [ $STANDALONE -eq 1 ]; then
-    CMD="$CMD --standalone"
-fi
+CMD="python3 main.py"
 
 if [ $USE_DRM -eq 1 ]; then
     CMD="$CMD --use-drm"
 fi
 
 # Run
-echo "Starting WARLOCK HMU..."
+echo "Starting WARLOCK..."
 echo "Command: $CMD"
 echo ""
 $CMD
 EOF
-    chmod +x "$hmu_script"
-    print_success "Created HMU launcher: $hmu_script"
-
-    # BMU launcher script
-    local bmu_script="$INSTALL_DIR/run_bmu.sh"
-    cat > "$bmu_script" << 'EOF'
-#!/bin/bash
-# Quick launcher for WARLOCK Body-Mounted Unit
-
-cd "$(dirname "$0")/software"
-
-echo "Starting WARLOCK BMU..."
-python3 body/body_main.py "$@"
-EOF
-    chmod +x "$bmu_script"
-    print_success "Created BMU launcher: $bmu_script"
+    chmod +x "$launcher_script"
+    print_success "Created launcher: $launcher_script"
 }
 
 # Create systemd service (optional)
@@ -399,16 +400,16 @@ create_systemd_service() {
     print_header "Creating Systemd Service (Optional)"
 
     print_info "Would you like to create a systemd service to auto-start WARLOCK on boot?"
-    print_info "This will run WARLOCK HMU in DRM mode at startup."
+    print_info "This will run WARLOCK in DRM mode at startup."
     echo -n "Create service? [y/N]: "
     read -r response
 
     if [[ "$response" =~ ^[Yy]$ ]]; then
-        local service_file="/etc/systemd/system/warlock-hmu.service"
+        local service_file="/etc/systemd/system/warlock.service"
 
         sudo tee "$service_file" > /dev/null << EOF
 [Unit]
-Description=WARLOCK Helmet-Mounted Unit
+Description=WARLOCK
 After=network.target
 
 [Service]
@@ -416,7 +417,7 @@ Type=simple
 User=$USER
 WorkingDirectory=$INSTALL_DIR/software
 Environment="WARLOCK_USE_DRM=1"
-ExecStart=/usr/bin/python3 helmet/helmet_main.py --standalone
+ExecStart=/usr/bin/python3 main.py
 Restart=on-failure
 RestartSec=5
 
@@ -426,9 +427,9 @@ EOF
 
         sudo systemctl daemon-reload
         print_success "Created systemd service: $service_file"
-        print_info "To enable auto-start: sudo systemctl enable warlock-hmu"
-        print_info "To start now: sudo systemctl start warlock-hmu"
-        print_info "To view logs: sudo journalctl -u warlock-hmu -f"
+        print_info "To enable auto-start: sudo systemctl enable warlock"
+        print_info "To start now: sudo systemctl start warlock"
+        print_info "To view logs: sudo journalctl -u warlock -f"
     else
         print_info "Skipping systemd service creation"
     fi
@@ -484,13 +485,22 @@ print_completion_summary() {
     print_success "WARLOCK has been installed to: $INSTALL_DIR"
     echo ""
     echo -e "${BLUE}Quick Start:${NC}"
-    echo "  1. Test with X11 (if using desktop or SSH with X forwarding):"
+    echo "  1. Test locally (if using desktop environment):"
     echo "     cd $INSTALL_DIR"
-    echo "     ./run_hmu.sh --standalone"
+    echo "     ./run_warlock.sh"
     echo ""
-    echo "  2. Test with DRM (headless mode, requires console or VT):"
+    echo "  2. Test with X11 forwarding (display on SSH client):"
+    echo "     ssh -X $USER@$(hostname)"
     echo "     cd $INSTALL_DIR"
-    echo "     ./run_hmu.sh --drm --standalone"
+    echo "     ./run_warlock.sh"
+    echo ""
+    echo "  3. Test with DRM (headless mode, requires console or VT):"
+    echo "     cd $INSTALL_DIR"
+    echo "     ./run_warlock.sh --drm"
+    echo ""
+    echo -e "${BLUE}Display Modes:${NC}"
+    echo "  • X11 (default): Use 'ssh -X' to display on remote computer"
+    echo "  • DRM: Direct rendering to connected display/AR glasses"
     echo ""
     echo -e "${BLUE}Controls:${NC}"
     echo "  Q - Quit | H - Help | P - Plugin panel"

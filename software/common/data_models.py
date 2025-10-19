@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Shared data models for WARLOCK HMU and BMU communication."""
+"""Shared data models for WARLOCK communication."""
 
 from dataclasses import dataclass, field
 from enum import Enum

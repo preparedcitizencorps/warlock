@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Network client for Helmet-Mounted Unit (HMU) to communicate with BMU."""
+"""Network client for WARLOCK helmet-mounted computer."""
 
 import logging
 import queue
@@ -15,15 +15,15 @@ from common.protocol import ConnectionStatus, MessageType
 logger = logging.getLogger(__name__)
 
 
-class HMUNetworkClient(NetworkConnection):
-    """Network client for HMU to connect to BMU server."""
+class WarlockNetworkClient(NetworkConnection):
+    """Network client for WARLOCK system."""
 
     def __init__(self, source_id: str, server_host: str = "192.168.200.2", tcp_port: int = None, udp_port: int = None):
-        """Initialize HMU network client.
+        """Initialize WARLOCK network client.
 
         Args:
-            source_id: Unique identifier (e.g., "WARLOCK-001-HMU")
-            server_host: BMU IP address
+            source_id: Unique identifier (e.g., "WARLOCK-001")
+            server_host: Server IP address
             tcp_port: TCP port for reliable messages
             udp_port: UDP port for fast messages
         """
@@ -46,12 +46,12 @@ class HMUNetworkClient(NetworkConnection):
         self.connection_type = "cable"
 
     def connect(self) -> bool:
-        """Connect to BMU server.
+        """Connect to server.
 
         Returns:
             True if connection successful, False otherwise
         """
-        logger.info(f"Connecting to BMU at {self.server_host}:{self.tcp_port}")
+        logger.info(f"Connecting to server at {self.server_host}:{self.tcp_port}")
 
         try:
             self.tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

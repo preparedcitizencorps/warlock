@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Network protocol definitions for HMU-BMU communication."""
+"""Network protocol definitions for WARLOCK communication."""
 
 import time
 from enum import Enum
@@ -7,16 +7,16 @@ from typing import Any, Dict
 
 
 class MessageType(Enum):
-    """Message types for HMU-BMU protocol."""
+    """Message types for WARLOCK protocol."""
 
-    # HMU → BMU (Upstream)
+    # Client → Server (Upstream)
     HEARTBEAT_HMU = "heartbeat_hmu"
     DETECTION = "detection"
     SENSOR_TELEMETRY = "sensor_telemetry"
     USER_INPUT = "user_input"
     FRAME_METADATA = "frame_metadata"
 
-    # BMU → HMU (Downstream)
+    # Server → Client (Downstream)
     HEARTBEAT_BMU = "heartbeat_bmu"
     GPS_UPDATE = "gps_update"
     TEAM_POSITIONS = "team_positions"
@@ -55,7 +55,7 @@ def create_message(msg_type: MessageType, source_id: str, payload: Dict[str, Any
 
     Args:
         msg_type: Message type from MessageType enum
-        source_id: Source identifier (e.g., "WARLOCK-001-HMU")
+        source_id: Source identifier (e.g., "WARLOCK-001")
         payload: Message payload data
 
     Returns:
