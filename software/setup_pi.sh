@@ -211,10 +211,21 @@ install_arducam_pivariety() {
 
     local SCRIPT_URL="https://github.com/ArduCAM/Arducam-Pivariety-V4L2-Driver/releases/download/install_script/install_pivariety_pkgs.sh"
     local SCRIPT_FILE="install_pivariety_pkgs.sh"
-    local EXPECTED_SHA="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    local EXPECTED_SHA="0d011eafd3c697522b93207e54912d8c11fd0413e8746bfc823ce0735ca10a08"
 
-    if ! wget --timeout=30 -O "$SCRIPT_FILE" "$SCRIPT_URL"; then
-        print_error "Failed to download Arducam installation script"
+    if command -v wget >/dev/null 2>&1; then
+        if ! wget --timeout=30 -O "$SCRIPT_FILE" "$SCRIPT_URL"; then
+            print_error "Failed to download Arducam installation script"
+            return 1
+        fi
+    elif command -v curl >/dev/null 2>&1; then
+        if ! curl -fsSL -o "$SCRIPT_FILE" "$SCRIPT_URL"; then
+            print_error "Failed to download Arducam installation script"
+            return 1
+        fi
+    else
+        print_error "Neither wget nor curl found - please install one of them"
+        print_info "Run: sudo apt install wget"
         return 1
     fi
 

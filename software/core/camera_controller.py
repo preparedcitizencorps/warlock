@@ -2,7 +2,7 @@
 """Thread-safe camera controller wrapper for OpenCV VideoCapture."""
 
 import threading
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import cv2
 
@@ -49,6 +49,8 @@ class CameraController:
         self._lock = threading.Lock()
 
     def set_exposure(self, value: float) -> bool:
+        if self._capture is None:
+            raise RuntimeError("Camera has been released")
         if not self.EXPOSURE_MIN <= value <= self.EXPOSURE_MAX:
             return False
 
@@ -56,11 +58,15 @@ class CameraController:
             return self._capture.set(cv2.CAP_PROP_EXPOSURE, value)
 
     def get_exposure(self) -> Optional[float]:
+        if self._capture is None:
+            raise RuntimeError("Camera has been released")
         with self._lock:
             value = self._capture.get(cv2.CAP_PROP_EXPOSURE)
             return value if value != -1 else None
 
     def set_gain(self, value: float) -> bool:
+        if self._capture is None:
+            raise RuntimeError("Camera has been released")
         if not self.GAIN_MIN <= value <= self.GAIN_MAX:
             return False
 
@@ -68,11 +74,15 @@ class CameraController:
             return self._capture.set(cv2.CAP_PROP_GAIN, value)
 
     def get_gain(self) -> Optional[float]:
+        if self._capture is None:
+            raise RuntimeError("Camera has been released")
         with self._lock:
             value = self._capture.get(cv2.CAP_PROP_GAIN)
             return value if value != -1 else None
 
     def set_brightness(self, value: float) -> bool:
+        if self._capture is None:
+            raise RuntimeError("Camera has been released")
         if not self.BRIGHTNESS_MIN <= value <= self.BRIGHTNESS_MAX:
             return False
 
@@ -80,11 +90,15 @@ class CameraController:
             return self._capture.set(cv2.CAP_PROP_BRIGHTNESS, value)
 
     def get_brightness(self) -> Optional[float]:
+        if self._capture is None:
+            raise RuntimeError("Camera has been released")
         with self._lock:
             value = self._capture.get(cv2.CAP_PROP_BRIGHTNESS)
             return value if value != -1 else None
 
     def set_property(self, prop_id: int, value: float) -> bool:
+        if self._capture is None:
+            raise RuntimeError("Camera has been released")
         if prop_id not in self.WHITELISTED_PROPERTIES:
             return False
 
@@ -97,6 +111,8 @@ class CameraController:
             return self._capture.set(prop_id, value)
 
     def get_property(self, prop_id: int) -> Optional[float]:
+        if self._capture is None:
+            raise RuntimeError("Camera has been released")
         if prop_id not in self.WHITELISTED_PROPERTIES:
             return None
 
@@ -104,7 +120,9 @@ class CameraController:
             value = self._capture.get(prop_id)
             return value if value != -1 else None
 
-    def read_frame(self) -> Tuple[bool, Optional[any]]:
+    def read_frame(self) -> Tuple[bool, Optional[Any]]:
+        if self._capture is None:
+            raise RuntimeError("Camera has been released")
         with self._lock:
             return self._capture.read()
 
