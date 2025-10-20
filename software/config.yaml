@@ -1,10 +1,13 @@
 # WARLOCK Configuration
 
-network:
-  source_id: "WARLOCK-001"
-  server_host: "192.168.200.2"  # Server IP address (cable or WiFi)
-  tcp_port: 5000
-  udp_port: 5001
+tak:
+  enabled: true
+  server_host: "192.168.1.100"  # TAK server IP (phone running ATAK/iTAK)
+  server_port: 8087  # Standard TAK TCP CoT port
+  callsign: "WARLOCK-001"  # Your callsign displayed in TAK
+  team_name: "Cyan"  # Team color: Cyan, Yellow, Magenta, Red, etc.
+  team_role: "Team Member"  # Team Lead, HQ, Medic, etc.
+  position_update_interval: 5.0  # Seconds between position broadcasts
 
 keybinds:
   system:
@@ -29,7 +32,7 @@ keybinds:
     toggle_borders: b
     padding_increase: "]"
     padding_decrease: "["
-    toggle_map: m
+    toggle_tak_overlay: t
 
   movement:
     forward: w
@@ -75,13 +78,10 @@ plugins:
     visible: true
     z_index: 10
 
-  - name: MiniMapPlugin
+  - name: TAKOverlayPlugin
     enabled: true
     visible: true
-    z_index: 5
-    settings:
-      zoom_level: 300
-      show_terrain: true
+    z_index: 20
 
   - name: YOLODetectionPlugin
     enabled: true

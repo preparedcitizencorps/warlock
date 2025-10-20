@@ -28,7 +28,7 @@ from common.config_loader import create_plugin_config, load_config
 from common.input_manager import InputManager
 from common.plugin_base import HUDContext
 from core.camera_controller import CameraController
-from core.network_client import WarlockNetworkClient
+from core.tak_client import TAKClient
 
 from hud.plugin_manager import PluginManager
 
@@ -59,6 +59,7 @@ class WarlockApplication:
 
         self.display = None
         self.keyboard = None
+        self.tak_client = None
 
         self.show_help = False
         self.running = False
@@ -128,42 +129,55 @@ class WarlockApplication:
         else:
             logger.info("Using X11 display mode (cv2.imshow)")
 
-        logger.info("Initializing with simulated TAK data...")
-        self._setup_simulated_data()
+        self._initialize_tak_client(config)
 
         logger.info("=" * 60)
         logger.info("WARLOCK ACTIVE - Press 'H' for help, 'Q' to quit")
         logger.info("=" * 60)
 
-    def _setup_simulated_data(self):
-        """Setup simulated GPS and TAK waypoint data for standalone mode."""
+    def _initialize_tak_client(self, config: dict):
+        """Initialize TAK server connection for blue-force tracking and POI display."""
+        tak_config = config.get("tak", {})
+
+        if not tak_config.get("enabled", False):
+            logger.info("TAK integration disabled - running standalone")
+            self._setup_simulated_position()
+            return
+
+        logger.info("Initializing TAK client...")
+
+        try:
+            self.tak_client = TAKClient(
+                server_host=tak_config.get("server_host", "192.168.1.100"),
+                server_port=tak_config.get("server_port", 8087),
+                callsign=tak_config.get("callsign", "WARLOCK-001"),
+                team_name=tak_config.get("team_name", "Cyan"),
+                team_role=tak_config.get("team_role", "Team Member"),
+            )
+
+            if tak_config.get("position_update_interval"):
+                self.tak_client.POSITION_UPDATE_INTERVAL = tak_config["position_update_interval"]
+
+            if self.tak_client.connect():
+                logger.info(f"Connected to TAK server at {tak_config.get('server_host')}")
+                self.context.state["tak_client"] = self.tak_client
+                self._setup_simulated_position()
+            else:
+                logger.warning("Failed to connect to TAK server - running standalone")
+                self._setup_simulated_position()
+
+        except Exception as e:
+            logger.error(f"TAK client initialization failed: {e}")
+            self._setup_simulated_position()
+
+    def _setup_simulated_position(self):
+        """Setup simulated GPS position (Schriever Space Force Base area)."""
         self.context.state["player_position"] = {
             "latitude": 38.8339,
             "longitude": -104.8214,
             "altitude": 1839,
             "heading": 0.0,
         }
-
-        self.context.state["tak_waypoints"] = [
-            {
-                "id": "wp-001",
-                "name": "Rally Point Alpha",
-                "latitude": 38.8350,
-                "longitude": -104.8200,
-                "bearing": 45,
-                "distance": 200,
-                "type": "waypoint",
-            },
-            {
-                "id": "poi-001",
-                "name": "Observation Post",
-                "latitude": 38.8360,
-                "longitude": -104.8230,
-                "bearing": 15,
-                "distance": 350,
-                "type": "poi",
-            },
-        ]
 
     def _initialize_input_manager(self, config: dict) -> InputManager:
         """Initialize InputManager with keybinds from config."""
@@ -212,6 +226,16 @@ class WarlockApplication:
                 logger.error("Failed to grab frame")
                 break
 
+            if self.tak_client and self.tak_client.connected:
+                pos = self.context.state.get("player_position", {})
+                if pos:
+                    self.tak_client.update_position(
+                        latitude=pos.get("latitude", 0.0),
+                        longitude=pos.get("longitude", 0.0),
+                        altitude=pos.get("altitude", 0.0),
+                        heading=pos.get("heading", 0.0),
+                    )
+
             try:
                 self.plugin_manager.update()
             except Exception as e:
@@ -252,6 +276,9 @@ class WarlockApplication:
     def cleanup(self):
         """Cleanup resources."""
         logger.info("Cleaning up...")
+
+        if self.tak_client:
+            self.tak_client.disconnect()
 
         if self.plugin_manager:
             self.plugin_manager.cleanup()
